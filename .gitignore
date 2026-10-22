@@ -5,7 +5,12 @@ AGENTS.md
 docs/WBS_BLUE_MOON.md
 docs/WBS_SPECIFICATION_STANDARDS.md
 *.pdf
-*.xlsx
+Nhóm_18_Epic_User_story.xlsx
+~$*
+*.tmp
+
+# Deliverables to track
+!docs/WBS_DICTIONARY.xlsx
 
 # Python & caches
 __pycache__/
