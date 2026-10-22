@@ -1,0 +1,22 @@
+# Ignore all temporary & working draft files
+AGENT.md
+AGENTS.md
+.agents/
+docs/WBS_BLUE_MOON.md
+docs/WBS_SPECIFICATION_STANDARDS.md
+*.pdf
+*.xlsx
+
+# Python & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
