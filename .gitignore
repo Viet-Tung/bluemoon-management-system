@@ -1,16 +1,15 @@
-# Ignore all temporary & working draft files
+# Ignore all temporary & drafting files
 AGENT.md
 AGENTS.md
 .agents/
 docs/WBS_BLUE_MOON.md
 docs/WBS_SPECIFICATION_STANDARDS.md
+docs/WBS_DICTIONARY.md
+docs/WBS_TREE_DIAGRAM.png
 *.pdf
 Nhóm_18_Epic_User_story.xlsx
 ~$*
 *.tmp
-
-# Deliverables to track
-!docs/WBS_DICTIONARY.xlsx
 
 # Python & caches
 __pycache__/
