@@ -343,36 +343,36 @@ Mọi luồng nghiệp vụ ghi dữ liệu nhạy cảm bắt buộc phải bao
 
 ## 6. BẢNG TRA CỨU NHANH THỰC THỂ CSDL (DATA DICTIONARY)
 
-| STT | Tên bảng trong CSDL | Vai trò Scrum phụ trách | User Stories chính | Ý nghĩa chức năng |
-| :---: | :--- | :---: | :---: | :--- |
-| 1 | `roles` | Thành viên 1 (Admin/PO) | `US-30`, `US-31` | Danh mục 4 vai trò phân quyền hệ thống |
-| 2 | `users` | Thành viên 1 (Admin/PO) | `US-28`, `US-29`, `US-30` | Tài khoản cán bộ BQT và cư dân |
-| 3 | `audit_logs` | Thành viên 1 (Admin/PO) | `US-32`, `US-31` | Lưu vết bất biến lịch sử thao tác hệ thống |
-| 4 | `document_counters` | Thành viên 3 (Billing Lead) | `US-19`, `US-41` | Quản lý bộ đếm sinh số biên lai, phiếu thu tự động |
-| 5 | `backup_jobs` | Thành viên 1 (Admin/PO) | `US-45` | Nhật ký sao lưu CSDL tự động và thủ công |
-| 6 | `apartments` | Thành viên 2 (BA/Backend) | `US-01` | Căn hộ vật lý (Mã căn, tầng, diện tích) |
-| 7 | `households` | Thành viên 2 (BA/Backend) | `US-01`, `US-02` | Hộ gia đình cư trú độc lập |
-| 8 | `apartment_occupancies` | Thành viên 2 (BA/Backend) | `US-02`, `US-03` | Lịch sử đổi chủ / cư trú căn hộ theo thời gian |
-| 9 | `residents` | Thành viên 2 (BA/Backend) | `US-05`, `US-06`, `US-07` | Danh sách nhân khẩu, chủ hộ, CCCD |
-| 10 | `temporary_residences` | Thành viên 2 (BA/Backend) | `US-08`, `US-09` | Hồ sơ tạm trú của khách đến ở |
-| 11 | `temporary_absences` | Thành viên 2 (BA/Backend) | `US-09`, `US-10` | Hồ sơ tạm vắng của nhân khẩu thường trú |
-| 12 | `residency_events` | Thành viên 2 (BA/Backend) | `US-07`, `US-11` | Lịch sử biến động nhân khẩu để nộp Công an |
-| 13 | `profile_change_requests`| Thành viên 5 (QA/Portal) | `US-34` | Đề nghị sửa thông tin từ Cổng cư dân |
-| 14 | `vehicles` | Thành viên 3 (Billing Lead) | `US-36` | Quản lý phương tiện đăng ký gửi xe |
-| 15 | `service_providers` | Thành viên 3 (Billing Lead) | `US-39` | Nhà cung cấp dịch vụ điện, nước, internet |
-| 16 | `fee_types` | Thành viên 3 (Billing Lead) | `US-12`, `US-13` | Danh mục khoản thu bắt buộc |
-| 17 | `fee_rates` | Thành viên 3 (Billing Lead) | `US-14` | Lịch sử đơn giá từng khoản thu theo ngày |
-| 18 | `fee_exemptions` | Thành viên 3 (Billing Lead) | `US-15`, `US-16` | Chính sách miễn giảm theo hộ |
-| 19 | `billing_periods` | Thành viên 3 (Billing Lead) | `US-17` | Các kỳ tính phí hàng tháng |
-| 20 | `utility_readings` | Thành viên 3 (Billing Lead) | `US-38` | Chỉ số công tơ điện nước tiêu thụ |
-| 21 | `invoices` | Thành viên 3 (Billing Lead) | `US-17`, `US-47` | Giấy báo phí từng hộ trong kỳ (kèm nợ cũ & dư có) |
-| 22 | `invoice_items` | Thành viên 3 (Billing Lead) | `US-17`, `US-47` | Dòng phí chi tiết: đơn giá x diện tích |
-| 23 | `payments` | Thành viên 4 (Frontend Lead) | `US-19`, `US-20`, `US-22` | Biên lai điện tử nộp tiền |
-| 24 | `payment_allocations` | Thành viên 4 (Frontend Lead) | `US-19` | Chi tiết gạch nợ từng khoản phí |
-| 25 | `household_credit_ledger`| Thành viên 3 (Billing Lead) | `US-19` | Sổ cái số dư có khi nộp thừa / cấn trừ |
-| 26 | `provider_settlements` | Thành viên 3 (Billing Lead) | `US-39` | Đối soát và quyết toán tiền thu hộ |
-| 27 | `donation_campaigns` | Thành viên 4 (Frontend Lead) | `US-40` | Các đợt vận động đóng góp từ thiện |
-| 28 | `donations` | Thành viên 4 (Frontend Lead) | `US-41` | Phiếu xác nhận ủng hộ quỹ tự nguyện |
+| STT | Tên bảng trong CSDL | Phân hệ chuyên môn phụ trách | User Stories chính | Ý nghĩa chức năng |
+| :---: | :--- | :---: | :---: | :--- |
+| 1 | `roles` | Backend (TV1, TV2) | `US-30`, `US-31` | Danh mục 4 vai trò phân quyền hệ thống |
+| 2 | `users` | Backend (TV1, TV2) | `US-28`, `US-29`, `US-30` | Tài khoản cán bộ BQT và cư dân |
+| 3 | `audit_logs` | Backend (TV1, TV2) | `US-32`, `US-31` | Lưu vết bất biến lịch sử thao tác hệ thống |
+| 4 | `document_counters` | Backend (TV1, TV2) | `US-19`, `US-41` | Quản lý bộ đếm sinh số biên lai, phiếu thu tự động |
+| 5 | `backup_jobs` | Database & Backend (TV5, TV1) | `US-45` | Nhật ký sao lưu CSDL tự động và thủ công |
+| 6 | `apartments` | Backend & Database (TV1, TV5) | `US-01` | Căn hộ vật lý (Mã căn, tầng, diện tích) |
+| 7 | `households` | Backend (TV1, TV2) | `US-01`, `US-02` | Hộ gia đình cư trú độc lập |
+| 8 | `apartment_occupancies` | Backend (TV1, TV2) | `US-02`, `US-03` | Lịch sử đổi chủ / cư trú căn hộ theo thời gian |
+| 9 | `residents` | Backend (TV1, TV2) | `US-05`, `US-06`, `US-07` | Danh sách nhân khẩu, chủ hộ, CCCD |
+| 10 | `temporary_residences` | Backend (TV1, TV2) | `US-08`, `US-09` | Hồ sơ tạm trú của khách đến ở |
+| 11 | `temporary_absences` | Backend (TV1, TV2) | `US-09`, `US-10` | Hồ sơ tạm vắng của nhân khẩu thường trú |
+| 12 | `residency_events` | Backend (TV1, TV2) | `US-07`, `US-11` | Lịch sử biến động nhân khẩu để nộp Công an |
+| 13 | `profile_change_requests`| Frontend & Backend (TV3, TV4, TV1) | `US-34` | Đề nghị sửa thông tin từ Cổng cư dân |
+| 14 | `vehicles` | Backend (TV1, TV2) | `US-36` | Quản lý phương tiện đăng ký gửi xe |
+| 15 | `service_providers` | Backend (TV1, TV2) | `US-39` | Nhà cung cấp dịch vụ điện, nước, internet |
+| 16 | `fee_types` | Backend (TV1, TV2) | `US-12`, `US-13` | Danh mục khoản thu bắt buộc |
+| 17 | `fee_rates` | Backend (TV1, TV2) | `US-14` | Lịch sử đơn giá từng khoản thu theo ngày |
+| 18 | `fee_exemptions` | Backend (TV1, TV2) | `US-15`, `US-16` | Chính sách miễn giảm theo hộ |
+| 19 | `billing_periods` | Backend (TV1, TV2) | `US-17` | Các kỳ tính phí hàng tháng |
+| 20 | `utility_readings` | Backend (TV1, TV2) | `US-38` | Chỉ số công tơ điện nước tiêu thụ |
+| 21 | `invoices` | Backend (TV1, TV2) | `US-17`, `US-47` | Giấy báo phí từng hộ trong kỳ (kèm nợ cũ & dư có) |
+| 22 | `invoice_items` | Backend (TV1, TV2) | `US-17`, `US-47` | Dòng phí chi tiết: đơn giá x diện tích |
+| 23 | `payments` | Backend & Frontend (TV1, TV2, TV3, TV4) | `US-19`, `US-20`, `US-22` | Biên lai điện tử nộp tiền |
+| 24 | `payment_allocations` | Backend (TV1, TV2) | `US-19` | Chi tiết gạch nợ từng khoản phí |
+| 25 | `household_credit_ledger`| Backend & Database (TV1, TV5) | `US-19` | Sổ cái số dư có khi nộp thừa / cấn trừ |
+| 26 | `provider_settlements` | Backend (TV1, TV2) | `US-39` | Đối soát và quyết toán tiền thu hộ |
+| 27 | `donation_campaigns` | Frontend & Backend (TV3, TV4, TV2) | `US-40` | Các đợt vận động đóng góp từ thiện |
+| 28 | `donations` | Frontend & Backend (TV3, TV4, TV2) | `US-41` | Phiếu xác nhận ủng hộ quỹ tự nguyện |
 
 ---
 

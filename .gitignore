@@ -4,9 +4,19 @@ AGENTS.md
 .agents/
 archived/
 *.pdf
+!docs/Plan.pdf
+!Plan.pdf
 Nhóm_18_Epic_User_story.xlsx
 ~$*
 *.tmp
+
+# Personal drafts & analysis documents (Giang - TV1)
+*PRE_CODING_BASELINE*
+*API_CONTRACT_REVIEW*
+*CSDL.puml
+*CSDL.drawio
+*openapi_summary*
+scratch/
 
 # Python & caches
 __pycache__/
@@ -15,6 +25,12 @@ __pycache__/
 .venv/
 env/
 venv/
+
+# Node & dependencies
+node_modules/
+dist/
+build/
+.npm/
 
 # IDE & OS
 .vscode/

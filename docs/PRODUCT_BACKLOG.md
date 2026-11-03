@@ -1,92 +1,124 @@
-# PRODUCT BACKLOG & SPRINT PLAN \- DỰ ÁN CHUNG CƯ BLUEMOON
+# PRODUCT BACKLOG & SPRINT PLAN - DỰ ÁN CHUNG CƯ BLUEMOON
+*(Đặc tả chuẩn hóa 100% theo tài liệu gốc Plan.pdf - Kế hoạch dự án BlueMoon Nhóm 18)*
 
-**Nhóm thực hiện:** Nhóm 18 (5 thành viên)  
-**Đơn vị:** Trường Công nghệ Thông tin và Truyền thông \- ĐHBK Hà Nội (SoICT/HUST)  
-**Phiên bản:** 1.0 (Đã chuẩn hóa truy vết & Acceptance Criteria)
-
----
-
-## 1\. DANH SÁCH THÀNH VIÊN & VAI TRÒ TRONG ĐỘI SCRUM
-
-| STT | Họ và tên | Vai trò Scrum / Kỹ thuật | Module phụ trách chính |
-| :---- | :---- | :---- | :---- |
-| 1 |  | Product Owner / Scrum Master / Fullstack | Quản lý người dùng, Phân quyền RBAC, Audit Log (`EP-05`, `EP-08`) |
-| 2 |  | Business Analyst / Backend Developer | Quản lý hộ gia đình, Nhân khẩu, Tạm trú/Tạm vắng (`EP-01`) |
-| 3 |  | System Architect / Backend Lead | Quản lý danh mục khoản thu, Kỳ thu, Ghi nhận thu phí (`EP-02`, `EP-03`) |
-| 4 |  | Frontend Lead / UI-UX Designer | Giao diện Quầy thu phí, Biên lai điện tử, Quỹ tự nguyện (`EP-03`, `EP-10`) |
-| 5 |  | QA/Tester Lead / Fullstack Developer | Tra cứu đa tiêu chí, Báo cáo thống kê, Cổng cư dân (`EP-04`, `EP-09`) |
-
-&nbsp;
+**Tên dự án:** Xây dựng phần mềm quản lý và thu phí ở chung cư Blue Moon  
+**Đơn vị thực hiện:** Nhóm 18 - Trường Công nghệ Thông tin và Truyền thông, ĐHBK Hà Nội  
+**Quy mô kế hoạch:** 47 User Stories – 150 Story Points – 4 Sprints  
 
 ---
 
-## 2\. TỔNG HỢP PRODUCT BACKLOG THEO 3 MODULE CHÍNH (V1.0)
+## 1. DANH SÁCH THÀNH VIÊN & VAI TRÒ (MÔ HÌNH HỢP TÁC PEER-TO-PEER)
 
-Dưới đây là bảng phân rã Product Backlog đã được ánh xạ từ 8 Epics (thuộc phạm vi v1.0), 31 Features và 47 User Stories vào 3 Module cốt lõi theo chuẩn đề bài:
+Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không có nhóm trưởng)**: 5 thành viên làm việc ngang hàng, không phân cấp thứ bậc, cùng chia sẻ trách nhiệm và phối hợp chặt chẽ theo chuyên môn:
 
-### MODULE 1: QUẢN LÝ NGƯỜI DÙNG & NỀN TẢNG HỆ THỐNG (`EP-05`, `EP-08`)
+| Mã TV | Họ và tên | Vai trò chuyên môn | Phân công chuyên môn chính |
+| :---: | :--- | :--- | :--- |
+| **TV1** | **Lê Trường Giang** | **Thành viên / Backend Developer** | **Kiến trúc hệ thống, Backend API, WBS** |
+| **TV2** | **Nguyễn Việt Tùng** | **Thành viên / Backend Developer** | **Backend API, Tiến độ & Lịch trình Gantt** |
+| **TV3** | **Nguyễn Thanh Hải** | **Thành viên / Frontend Developer** | **Frontend Web, Quản lý giao diện & Tài liệu** |
+| **TV4** | **Lê Nguyễn Nhật Huy** | **Thành viên / Frontend Developer** | **Frontend UI-UX, Kiểm soát chất lượng DoD** |
+| **TV5** | **Vũ Trung Kiên** | **Thành viên / Database Specialist** | **Thiết kế CSDL, Quản lý rủi ro & Ngân sách** |
 
-| Mã US | Tính năng (Feature) | Nội dung User Story (As a... I want... So that...) | Độ ưu tiên (MoSCoW) | Điểm (Story Points) | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria) |
-| :---- | :---- | :---- | :---: | :---: | :---- |
-| **US-28** | `F-05.1` Đăng nhập & Phiên làm việc | **As a** người dùng hệ thống, **I want** đăng nhập bằng tài khoản được cấp, **so that** truy cập đúng chức năng theo vai trò. | Must (M) | 3 | `AC-28.1`: Đăng nhập đúng chuyển tới trang chủ theo role.<br>`AC-28.2`: Sai mật khẩu 5 lần liên tiếp khóa tài khoản 15 phút (`D-05`). |
-| **US-29** | `F-05.2` Bảo mật mật khẩu | **As a** người dùng, **I want** đổi mật khẩu cá nhân và bắt buộc đổi trong lần đầu đăng nhập, **so that** bảo mật tài khoản. | Must (M) | 2 | `AC-29.1`: Mật khẩu mới $\geq 8$ ký tự, gồm chữ hoa, thường, số.<br>`AC-29.2`: Lần đầu đăng nhập bắt buộc đổi mật khẩu trước khi thao tác. |
-| **US-30** | `F-05.3` Quản lý tài khoản & RBAC | **As a** BQT (Admin), **I want** tạo, khóa tài khoản và gán vai trò (Admin, Kế toán, Thủ quỹ, Cư dân), **so that** kiểm soát truy cập. | Must (M) | 5 | `AC-30.1`: Gán/thu hồi role có hiệu lực ngay ở request tiếp theo.<br>`AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ mới (`D-12`). |
-| **US-31** | `F-05.4` Nhật ký thao tác (Audit Log) | **As a** BQT (Admin), **I want** xem lịch sử các thao tác nhạy cảm (sửa đơn giá, hủy biên lai, đổi chủ hộ), **so that** truy vết trách nhiệm. | Should (S) | 3 | `AC-31.1`: Lưu rõ Người thực hiện, Thời gian, Hành động, Giá trị cũ $\rightarrow$ Giá trị mới. Không cho phép xóa/sửa Audit Log. |
-| **US-44** | `F-08.1` Kiến trúc & Bảo mật | **As a** BQT (Admin), **I want** mật khẩu được băm (bcrypt) và phân quyền chặn truy cập trái phép ở tầng API, **so that** an toàn dữ liệu. | Must (M) | 5 | `AC-44.1`: Mật khẩu lưu dạng bcrypt.<br>`AC-44.2`: Chặn lỗi IDOR khi cư dân đổi ID hộ trên URL (`AC-33.2`). |
-| **US-45** | `F-08.2` Sao lưu & Phục hồi | **As a** BQT (Admin), **I want** hệ thống tự động sao lưu CSDL hằng ngày lúc 02:00 sáng, **so that** tránh mất dữ liệu tài chính. | Should (S) | 3 | `AC-45.1`: Lưu bản backup trong 30 ngày, thời gian phục hồi (RTO) $\leq 2$ giờ (`NFR-002`). |
-
-&nbsp;
+*Ghi chú về cơ chế làm việc:* Toàn bộ quy trình ra quyết định, review mã nguồn (Peer Code Review) và điều phối công việc được thực hiện trên nguyên tắc đồng thuận (Consensus), bình đẳng và hỗ trợ chéo giữa các thành viên.
 
 ---
 
-### MODULE 2: QUẢN LÝ HỘ GIA ĐÌNH & NHÂN KHẨU (`EP-01`, `EP-09`)
+## 2. TỔNG HỢP PRODUCT BACKLOG THEO 3 MODULE CHÍNH (CHUẨN PLAN.PDF - MỤC II.3)
 
-| Mã US | Tính năng (Feature) | Nội dung User Story | Độ ưu tiên | Story Points | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria) |
-| :---- | :---- | :---- | :---: | :---: | :---- |
-| **US-01** | `F-01.1` Hồ sơ Căn hộ & Hộ | **As a** BQT, **I want** thêm mới và cập nhật thông tin căn hộ (Mã căn, Tầng, Diện tích $\text{m}^2$) và Hộ gia đình, **so that** làm cơ sở tính phí. | Must (M) | 5 | `AC-01.1`: Không trùng mã căn hộ; diện tích $> 0\text{ m}^2$.<br>`AC-01.2`: Tách biệt thực thể `Căn hộ` và `Hộ` (`T-01`, `T-02`). |
-| **US-02** | `F-01.1` Đổi chủ / Chuyển nhượng | **As a** BQT, **I want** thực hiện nghiệp vụ chuyển nhượng/đổi hộ cư trú tại căn hộ, **so that** giữ nguyên lịch sử thu phí của hộ cũ. | Should (S) | 5 | `AC-02.1`: Bắt buộc tất toán công nợ hộ cũ trước khi gán hộ mới vào căn hộ (`D-06`). |
-| **US-04** | `F-01.1` Import dữ liệu Excel | **As a** BQT, **I want** nhập danh sách hộ và nhân khẩu từ file Excel mẫu, **so that** khởi tạo nhanh dữ liệu ban đầu. | Should (S) | 5 | `AC-04.1`: Báo lỗi chi tiết từng dòng sai định dạng (trùng CCCD, diện tích âm) và không lưu nửa vời (Transaction). |
-| **US-05** | `F-01.2` Quản lý Nhân khẩu | **As a** BQT, **I want** thêm, sửa thông tin nhân khẩu trong hộ (Họ tên, Ngày sinh, CCCD, Quan hệ với chủ hộ), **so that** quản lý cư trú. | Must (M) | 5 | `AC-05.1`: Mỗi hộ chỉ có duy nhất 1 Chủ hộ đang hoạt động.<br>`AC-05.3`: Cho phép để trống CCCD với trẻ em dưới 14 tuổi. |
-| **US-07** | `F-01.3` Biến động nhân khẩu | **As a** BQT, **I want** ghi nhận nhân khẩu chuyển đi, qua đời hoặc tách hộ, **so that** danh sách nhân khẩu luôn chính xác. | Must (M) | 3 | `AC-07.1`: Chuyển trạng thái nhân khẩu sang "Đã chuyển đi" kèm ngày biến động, không xóa vật lý. |
-| **US-08** | `F-01.3` Tạm trú & Tạm vắng | **As a** BQT, **I want** đăng ký tạm trú/tạm vắng có thời hạn (từ ngày \- đến ngày), **so that** theo dõi nhân khẩu vãng lai. | Must (M) | 5 | `AC-08.1`: Cảnh báo các trường hợp tạm trú sắp hết hạn trước 15 ngày (`D-04`). |
-| **US-10** | `F-01.4` Báo cáo cư trú Công an | **As a** BQT, **I want** xuất báo cáo nhân khẩu, tạm trú/tạm vắng theo mẫu Công an phường (`DOC-03`), **so that** nộp định kỳ. | Should (S) | 3 | `AC-10.1`: Xuất đúng biểu mẫu Excel/PDF trong thời gian $\leq 5$ giây (`NFR-011`). |
-| **US-33** | `F-09.1` Cổng tra cứu Cư dân | **As a** Cư dân, **I want** xem thông tin nhân khẩu của hộ mình và lịch sử đóng phí, **so that** tự kiểm tra minh bạch. | Should (S) | 3 | `AC-33.1`: Chỉ xem được dữ liệu của chính hộ mình (`RAW-011`, `WL-028`). |
-| **US-34** | `F-09.2` Đề nghị chỉnh sửa thông tin | **As a** Cư dân, **I want** gửi yêu cầu chỉnh sửa thông tin nhân khẩu kèm minh chứng, **so that** BQT phê duyệt cập nhật. | Could (C) | 3 | `AC-34.1`: Trạng thái "Chờ duyệt".<br>`AC-34.2`: BQT Duyệt $\rightarrow$ Cập nhật & ghi Audit Log.<br>`AC-34.3`: BQT Từ chối $\rightarrow$ Bắt buộc nhập lý do. |
+### MODULE 1: QUẢN LÝ NGƯỜI DÙNG & NỀN TẢNG HỆ THỐNG
 
-&nbsp;
-
----
-
-### MODULE 3: QUẢN LÝ THU PHÍ, THỐNG KÊ & QUỸ TỰ NGUYỆN (`EP-02`, `EP-03`, `EP-04`, `EP-10`)
-
-| Mã US | Tính năng (Feature) | Nội dung User Story | Độ ưu tiên | Story Points | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria) |
-| :---- | :---- | :---- | :---: | :---: | :---- |
-| **US-11** | `F-02.1` Danh mục khoản thu | **As a** Kế toán, **I want** tạo và cấu hình các khoản thu (Bắt buộc theo $\text{m}^2$, cố định theo hộ, hoặc tự nguyện), **so that** áp dụng tính phí. | Must (M) | 5 | `AC-11.1`: Phân loại rõ cách tính; không cho phép xóa vật lý khoản thu đã phát sinh giao dịch (`AC-13.2`). |
-| **US-14** | `F-02.2` Lịch sử đơn giá | **As a** Kế toán, **I want** cập nhật đơn giá mới theo ngày hiệu lực, **so that** các kỳ thu cũ không bị nhảy lại số tiền. | Must (M) | 3 | `AC-14.1`: Kỳ thu đã chốt giữ nguyên đơn giá tại thời điểm tạo kỳ. |
-| **US-17** | `F-03.1` Tạo kỳ thu tự động | **As a** Kế toán, **I want** khởi tạo kỳ thu hàng tháng và hệ thống tự động tính phí cho toàn bộ 1.000 hộ, **so that** không phải nhân Excel. | Must (M) | 8 | `AC-17.1`: Tổng phải nộp \= $\sum(\text{Phí kỳ này} - \text{Miễn giảm}) + \text{Nợ cũ} - \text{Số dư có}$. Hoàn tất $\leq 10$ giây (`NFR-005`). |
-| **US-19** | `F-03.2` Ghi nhận thu phí | **As a** Thủ quỹ / Kế toán, **I want** ghi nhận hộ dân nộp tiền (đủ, một phần, hoặc nộp dư) bằng tiền mặt/chuyển khoản, **so that** gạch nợ. | Must (M) | 8 | `AC-19.1`: Nộp đủ $\rightarrow$ "Đã nộp đủ".<br>`AC-19.2`: Nộp 1 phần $\rightarrow$ Cho phép tích chọn khoản thu gạch nợ.<br>`AC-19.5`: Nộp dư $\rightarrow$ Chuyển phần dư vào "Số dư có" kỳ sau. |
-| **US-20** | `F-03.3` In biên lai điện tử | **As a** Thủ quỹ, **I want** xuất và in biên lai thu tiền có mã biên lai tự tăng duy nhất, **so that** giao cho cư dân. | Must (M) | 5 | `AC-20.1`: Đúng mẫu `DOC-02`.<br>`AC-20.2`: In từ lần thứ 2 trở đi tự động đóng dấu chữ **"BẢN SAO"**. |
-| **US-22** | `F-03.5` Hủy giao dịch thu sai | **As a** Kế toán trưởng/BQT, **I want** hủy biên lai thu nhầm và nhập lý do bắt buộc, **so that** khôi phục lại công nợ đúng cho hộ. | Should (S) | 3 | `AC-22.1`: Không xóa bản ghi giao dịch, chuyển trạng thái "Đã hủy", cộng trả lại công nợ và ghi Audit Log. |
-| **US-23** | `F-04.1` Tìm kiếm đa tiêu chí | **As a** BQT/Kế toán/Thủ quỹ, **I want** tìm kiếm nhanh hộ, nhân khẩu, khoản thu theo tên, mã căn, CCCD, SĐT, **so that** tra cứu tức thì. | Must (M) | 3 | `AC-23.1`: Thời gian phản hồi kết quả tìm kiếm $\leq 1$ giây trên tập 1.000 hộ / 5.000 nhân khẩu (`RAW-009`, `RAW-032`). |
-| **US-24** | `F-04.2` Báo cáo thu & Công nợ | **As a** Kế toán, **I want** xem và xuất báo cáo tổng hợp thu phí, danh sách hộ còn nợ theo kỳ ra Excel/PDF, **so that** báo cáo BQT. | Must (M) | 5 | `AC-24.1`: Số liệu khớp 100% với tổng các biên lai hợp lệ trong kỳ. |
-| **US-27** | `F-04.5` Dashboard tổng quan | **As a** Trưởng BQT, **I want** xem biểu đồ tỷ lệ hoàn thành thu phí tháng, tổng số hộ nợ, tổng nhân khẩu, **so that** nắm bắt nhanh tình hình. | Should (S) | 3 | `AC-27.1`: Hiển thị trực quan trên màn hình chính của BQT. |
-| **US-35** | `F-10.1` Quỹ vận động tự nguyện | **As a** Thủ quỹ, **I want** tạo đợt vận động đóng góp tự nguyện (Quỹ vì người nghèo, Khuyến học...) và ghi nhận số tiền tùy tâm, **so that** quản lý riêng biệt với phí bắt buộc. | Should (S) | 5 | `AC-35.1`: Không tính vào công nợ bắt buộc của hộ; báo cáo công khai tổng quỹ nhưng giữ riêng tư mức đóng chi tiết giữa các cư dân (`WL-026`, `WL-034`). |
-
-&nbsp;
+| Mã US | Mã Feature | Mã WBS | Nội dung User Story (As a... I want... So that...) | Ưu tiên | Story Points | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria / DoD) |
+| :----: | :----: | :----: | :---- | :----: | :----: | :---- |
+| **US-44** | `F-08.1` Kiến trúc & Bảo mật | `2.1.1`, `2.1.3` | **As a** BQT (Admin), **I want** mật khẩu được băm (bcrypt) và phân quyền chặn truy cập trái phép ở tầng API, **so that** an toàn dữ liệu hệ thống. | Must (M) | 5 | `AC-44.1`: Mật khẩu lưu dạng băm bcrypt.<br>`AC-44.2`: Chặn lỗi IDOR khi cư dân đổi ID hộ trên URL. |
+| **US-45** | `F-08.2` Sao lưu & Phục hồi | `2.1.1` | **As a** BQT (Admin), **I want** hệ thống tự động sao lưu CSDL hằng ngày lúc 02:00 sáng, **so that** tránh mất dữ liệu tài chính. | Should (S) | 3 | `AC-45.1`: Lập lịch tự động backup lúc 02:00 sáng, lưu trong 30 ngày, thời gian phục hồi (RTO) $\le 2$ giờ (`NFR-002`). |
+| **US-46** | `F-08.2` Toàn vẹn giao dịch CSDL | `2.1.1` | **As a** Hệ thống / Kế toán, **I want** mọi giao dịch thu phí, gạch nợ và import dữ liệu tuân thủ chuẩn ACID, **so that** không bị lệch số liệu khi lỗi mạng hoặc đồng thời. | Must (M) | 5 | `AC-46.1`: Đảm bảo tính nguyên tử (Atomicity) và cô lập (Isolation), tự động rollback toàn bộ nếu 1 bước lỗi; không bị deadlock khi 50 kết nối đồng thời (`NFR-008`, `NFR-010`). |
+| **US-28** | `F-05.1` Đăng nhập & Phiên làm việc | `2.1.2` | **As a** người dùng hệ thống, **I want** đăng nhập/đăng xuất bằng tài khoản được cấp với xác thực JWT, **so that** truy cập đúng chức năng theo vai trò. | Must (M) | 3 | `AC-28.1`: Đăng nhập đúng chuyển tới trang chủ theo role.<br>`AC-28.2`: Sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút (`D-05`). |
+| **US-29** | `F-05.2` Quản lý mật khẩu | `2.1.2` | **As a** người dùng, **I want** đổi mật khẩu cá nhân và bắt buộc đổi trong lần đầu đăng nhập, **so that** bảo mật tài khoản. | Must (M) | 2 | `AC-29.1`: Mật khẩu mới $\ge 8$ ký tự, gồm chữ hoa, chữ thường, số.<br>`AC-29.2`: Lần đầu đăng nhập bắt buộc đổi mật khẩu trước khi thao tác. |
+| **US-30** | `F-05.3` Quản lý tài khoản người dùng | `2.1.3` | **As a** BQT (Admin), **I want** thêm mới, khóa/mở khóa tài khoản nhân sự và tự động cấp tài khoản cư dân, **so that** quản lý định danh tập trung. | Must (M) | 3 | `AC-30.1`: Tạo/khóa tài khoản có hiệu lực tức thì.<br>`AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ mới (`D-12`). |
+| **US-31** | `F-05.3` Phân quyền theo vai trò (RBAC) | `2.1.3` | **As a** BQT (Admin), **I want** gán và thu hồi quyền truy cập theo 4 vai trò (Admin, Kế toán, Thủ quỹ, Cư dân), **so that** mỗi người chỉ thao tác đúng phận sự. | Must (M) | 3 | `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay ở request tiếp theo. |
+| **US-32** | `F-05.4` Nhật ký thao tác (Audit Log) | `2.1.4` | **As a** BQT (Admin), **I want** xem và lọc lịch sử các thao tác nhạy cảm (sửa đơn giá, hủy biên lai, đổi chủ hộ), **so that** truy vết trách nhiệm minh bạch. | Should (S) | 3 | `AC-32.1`: Lưu rõ User thực hiện, Thời gian, Hành động, Giá trị cũ $\rightarrow$ Giá trị mới. Tuyệt đối chặn xóa/sửa bảng `audit_logs`. |
 
 ---
 
-## 3\. KẾ HOẠCH PHÂN BỔ 4 SPRINTS (LỘ TRÌNH PHÁT TRIỂN)
+### MODULE 2: QUẢN LÝ HỘ GIA ĐÌNH, NHÂN KHẨU & CỔNG CƯ DÂN
 
-* **Sprint 1 (Tuần 4 – Tuần 5): Nền tảng, Phân quyền & Hồ sơ Hộ/Nhân khẩu cơ bản**  
-  * **Mục tiêu:** Dựng xong khung dự án (Backend \+ Frontend \+ DB), đăng nhập phân quyền RBAC và CRUD Căn hộ, Hộ gia đình, Nhân khẩu.  
-  * **User Stories:** `US-28`, `US-29`, `US-30`, `US-44`, `US-01`, `US-05`.  
-* **Sprint 2 (Tuần 6 – Tuần 7): Biến động cư trú & Cấu hình Danh mục khoản thu**  
-  * **Mục tiêu:** Hoàn thiện nghiệp vụ Tạm trú/Tạm vắng, Import Excel, Đổi chủ hộ và Thiết lập công thức/đơn giá các khoản phí.  
-  * **User Stories:** `US-02`, `US-04`, `US-07`, `US-08`, `US-10`, `US-11`, `US-14`.  
-* **Sprint 3 (Tuần 8 – Tuần 9): Tạo kỳ thu, Quầy thu phí, Biên lai & Quỹ tự nguyện (Chốt First UAT \- 30/11)**  
-  * **Mục tiêu:** Chạy luồng tính phí tự động cho 1.000 hộ, gạch nợ (đủ/một phần/dư), in biên lai PDF và thu quỹ tự nguyện.  
-  * **User Stories:** `US-17`, `US-19`, `US-20`, `US-22`, `US-35`.  
-* **Sprint 4 (Tuần 10 – Tuần 11): Tìm kiếm, Thống kê, Dashboard, Cổng cư dân & Sao lưu (Chốt Second UAT \- 15/12)**  
-  * **Mục tiêu:** Hoàn thiện tìm kiếm $\le 1\text{s}$, xuất báo cáo công nợ, biểu đồ Dashboard, Cổng tra cứu cư dân và tự động sao lưu.  
-  * **User Stories:** `US-23`, `US-24`, `US-27`, `US-31`, `US-33`, `US-34`, `US-45`.
+| Mã US | Mã Feature | Mã WBS | Nội dung User Story (As a... I want... So that...) | Ưu tiên | Story Points | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria / DoD) |
+| :----: | :----: | :----: | :---- | :----: | :----: | :---- |
+| **US-01** | `F-01.1` Hồ sơ Căn hộ & Hộ gia đình | `2.2.1` | **As a** BQT, **I want** thêm mới và cập nhật thông tin Căn hộ (Mã căn, Tầng, Diện tích $\text{m}^2$) và Hộ gia đình, **so that** làm cơ sở chuẩn để tính phí. | Must (M) | 5 | `AC-01.1`: Không trùng mã căn hộ; diện tích $> 0\text{ m}^2$.<br>`AC-01.2`: Tách biệt 2 thực thể `Căn hộ` và `Hộ gia đình` trong CSDL (`T-01`, `T-02`). |
+| **US-02** | `F-01.1` Đổi chủ hộ | `2.2.1` | **As a** BQT, **I want** thực hiện nghiệp vụ thay đổi chủ hộ đại diện trong hộ gia đình kèm điều kiện kiểm tra công nợ, **so that** đảm bảo trách nhiệm pháp lý. | Should (S) | 3 | `AC-02.1`: Kiểm tra và bắt buộc tất toán công nợ cũ hoặc xác nhận bàn giao nợ trước khi đổi chủ hộ (`D-06`), ghi nhận vào Audit Log. |
+| **US-03** | `F-01.1` Chuyển nhượng căn hộ | `2.2.1` | **As a** BQT, **I want** thực hiện chuyển nhượng căn hộ sang hộ gia đình mới mà vẫn giữ nguyên lịch sử thu phí của hộ cũ, **so that** không làm sai lệch báo cáo lịch sử. | Should (S) | 3 | `AC-03.1`: Đóng hồ sơ cư trú của hộ cũ tại căn hộ, gắn hộ mới vào căn hộ và bảo toàn 100% biên lai lịch sử của hộ cũ. |
+| **US-04** | `F-01.1` Nhập dữ liệu từ Excel (Import) | `2.2.2` | **As a** BQT, **I want** nhập danh sách căn hộ, hộ gia đình và nhân khẩu hàng loạt từ file Excel mẫu (`DOC-01`), **so that** khởi tạo nhanh 1.000 căn hộ ban đầu. | Should (S) | 5 | `AC-04.1`: Phân tích file, báo lỗi chi tiết từng dòng sai định dạng (trùng CCCD, diện tích âm) và chạy trong 1 Database Transaction duy nhất (rollback toàn bộ nếu có lỗi). |
+| **US-05** | `F-01.2` Thêm/Sửa Nhân khẩu trong hộ | `2.2.3` | **As a** BQT, **I want** thêm mới, cập nhật thông tin nhân khẩu trong hộ (Họ tên, Ngày sinh, CCCD, Quan hệ với chủ hộ), **so that** quản lý danh sách cư dân. | Must (M) | 5 | `AC-05.1`: Mỗi hộ chỉ có duy nhất 1 Chủ hộ đang hoạt động.<br>`AC-05.2`: Không trùng số CCCD trên toàn hệ thống.<br>`AC-05.3`: Cho phép để trống CCCD đối với trẻ em dưới 14 tuổi. |
+| **US-06** | `F-01.2` Xóa logic & Tra cứu | `2.2.3` | **As a** BQT, **I want** xem danh sách thành viên chi tiết trong từng hộ và xóa logic các bản ghi nhập sai, **so that** hồ sơ hộ gia đình luôn sạch và chuẩn xác. | Must (M) | 2 | `AC-06.1`: Hiển thị đầy đủ danh sách nhân khẩu kèm trạng thái cư trú; chặn xóa Chủ hộ khi hộ vẫn đang hoạt động. |
+| **US-07** | `F-01.3` Ghi nhận biến động nhân khẩu | `2.2.4` | **As a** BQT, **I want** ghi nhận nhân khẩu chuyển đến, chuyển đi hoặc qua đời kèm ngày biến động, **so that** theo dõi sát biến động dân cư. | Must (M) | 3 | `AC-07.1`: Cập nhật trạng thái nhân khẩu sang "Đã chuyển đi" / "Đã qua đời" kèm ngày hiệu lực và lý do, không xóa vật lý bản ghi. |
+| **US-08** | `F-01.3` Đăng ký Tạm trú | `2.2.4` | **As a** BQT, **I want** đăng ký thông tin tạm trú có thời hạn (từ ngày – đến ngày) cho người thuê/khách ở dài ngày, **so that** quản lý nhân khẩu vãng lai. | Must (M) | 3 | `AC-08.1`: Bắt buộc ngày kết thúc $>$ ngày bắt đầu; lưu thông tin CCCD, địa chỉ thường trú và căn hộ tạm trú. |
+| **US-09** | `F-01.3` Cảnh báo hết hạn Tạm trú/vắng | `2.2.4` | **As a** BQT, **I want** hệ thống tự động lọc và cảnh báo các trường hợp tạm trú/tạm vắng sắp hết hạn trước 15 ngày, **so that** kịp thời nhắc cư dân gia hạn. | Should (S) | 2 | `AC-09.1`: Tự động đánh dấu cảnh báo màu vàng/đỏ cho các bản ghi có Ngày hết hạn - Ngày hiện tại <= 15 ngày (`D-04`). |
+| **US-10** | `F-01.3` Đăng ký Tạm vắng | `2.2.4` | **As a** BQT, **I want** ghi nhận khai báo tạm vắng có thời hạn cho nhân khẩu thường trú đi công tác/học tập xa, **so that** nắm rõ quân số thực tế tại chung cư. | Must (M) | 2 | `AC-10.1`: Lưu rõ thời gian tạm vắng, nơi đến và tự động khôi phục trạng thái khi hết hạn hoặc khi cư dân báo về. |
+| **US-11** | `F-01.4` Kết xuất báo cáo Công an | `2.2.5` | **As a** BQT, **I want** kết xuất danh sách thường trú, tạm trú, tạm vắng và biến động nhân khẩu theo biểu mẫu Công an khu vực (`DOC-03`), **so that** nộp báo cáo định kỳ. | Should (S) | 3 | `AC-11.1`: Xuất đúng định dạng biểu mẫu `DOC-03` (Excel/PDF) với thời gian phản hồi kết xuất $\le 5$ giây (`NFR-011`). |
+| **US-33** | `F-09.1` Cổng cư dân tra cứu thông tin hộ | `2.2.6` | **As a** Cư dân, **I want** đăng nhập Portal để xem thông tin căn hộ và danh sách nhân khẩu của hộ mình, **so that** tự kiểm tra tính chính xác minh bạch. | Should (S) | 3 | `AC-33.1`: Chỉ xem được dữ liệu của chính hộ mình (`RAW-011`, `WL-028`), chặn truy cập chéo sang hộ khác. |
+| **US-34** | `F-09.1` Đề nghị chỉnh sửa thông tin hộ | `2.2.6` | **As a** Cư dân, **I want** gửi yêu cầu chỉnh sửa thông tin nhân khẩu kèm ảnh minh chứng để BQT xét duyệt, **so that** không phải lên trực tiếp văn phòng BQT. | Could (C) | 3 | `AC-34.1`: Tạo yêu cầu trạng thái "Chờ duyệt".<br>`AC-34.2`: BQT Duyệt $\rightarrow$ Tự động cập nhật & ghi Audit Log.<br>`AC-34.3`: BQT Từ chối $\rightarrow$ Bắt buộc nhập lý do từ chối. |
+| **US-35** | `F-09.2` Cổng cư dân tra cứu công nợ & Lịch sử nộp | `2.4.4` | **As a** Cư dân, **I want** tra cứu chi tiết các khoản phí phát sinh theo kỳ, số dư có hiện tại và lịch sử biên lai đã nộp của hộ mình, **so that** chủ động đóng phí. | Should (S) | 3 | `AC-35.1`: Chỉ xem được dữ liệu tài chính của hộ mình; hiển thị rõ công nợ từng kỳ, số dư có (credit) và tải được biên lai điện tử PDF. |
+
+---
+
+### MODULE 3: QUẢN LÝ THU PHÍ, QUỸ TỰ NGUYỆN, TRA CỨU & THỐNG KÊ
+
+| Mã US | Mã Feature | Mã WBS | Nội dung User Story (As a... I want... So that...) | Ưu tiên | Story Points | Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria / DoD) |
+| :----: | :----: | :----: | :---- | :----: | :----: | :---- |
+| **US-12** | `F-02.1` Khởi tạo khoản thu bắt buộc | `2.3.1` | **As a** Kế toán, **I want** tạo và cấu hình các khoản phí bắt buộc (tính theo diện tích $\text{m}^2$ hoặc cố định theo hộ/nhân khẩu), **so that** làm công thức tính phí hàng tháng. | Must (M) | 3 | `AC-12.1`: Khai báo rõ mã khoản thu, tên, loại phí bắt buộc, đơn vị tính (`m2`, `hộ`, `người`) và công thức áp dụng. |
+| **US-13** | `F-02.1` Quản lý trạng thái danh mục khoản thu | `2.3.1` | **As a** Kế toán, **I want** cập nhật hoặc ngừng kích hoạt khoản thu không còn áp dụng, **so that** danh mục khoản thu luôn gọn gàng mà không mất dữ liệu cũ. | Must (M) | 2 | `AC-13.1`: Tuyệt đối không cho phép xóa vật lý khoản thu đã phát sinh giao dịch trong quá khứ (chỉ chuyển sang trạng thái "Ngừng áp dụng"). |
+| **US-14** | `F-02.2` Quản lý lịch sử đơn giá | `2.3.1` | **As a** Kế toán, **I want** cập nhật đơn giá mới kèm ngày bắt đầu hiệu lực, **so that** các kỳ thu đã chốt trước đó không bị nhảy lại số tiền. | Must (M) | 3 | `AC-14.1`: Lưu bảng lịch sử đơn giá theo ngày hiệu lực; kỳ thu đã chốt giữ nguyên snapshot đơn giá tại thời điểm tạo kỳ; ghi Audit Log khi đổi giá. |
+| **US-15** | `F-02.3` Cấu hình chính sách miễn giảm phí | `2.3.1` | **As a** Kế toán, **I want** thiết lập tỷ lệ (%) hoặc số tiền miễn giảm phí cho từng hộ thuộc diện chính sách/ưu tiên, **so that** hệ thống tự động trừ khi tính phí. | Should (S) | 2 | `AC-15.1`: Cho phép gắn mức miễn giảm theo hộ + khoản thu + thời hạn hiệu lực; số tiền miễn giảm không vượt quá phí gốc. |
+| **US-16** | `F-02.3` Phê duyệt & Tra cứu danh sách miễn giảm | `2.3.1` | **As a** Trưởng BQT / Kế toán, **I want** xem danh sách các hộ đang được hưởng miễn giảm kèm lý do/quyết định, **so that** kiểm soát minh bạch khoản giảm trừ. | Should (S) | 2 | `AC-16.1`: Hiển thị rõ lý do miễn giảm, người phê duyệt và tổng số tiền miễn giảm trong kỳ. |
+| **US-17** | `F-03.1` Động cơ tạo kỳ thu & Tính phí tự động | `2.3.2` | **As a** Kế toán, **I want** khởi tạo kỳ thu tháng và chạy động cơ tự động tính phí cho toàn bộ 1.000 hộ, **so that** không phải tính thủ công bằng Excel. | Must (M) | 8 | `AC-17.1`: Công thức chuẩn: $\text{Tổng phải nộp} = \sum(\text{Phí kỳ này} - \text{Miễn giảm}) + \text{Nợ cũ} - \text{Số dư có}$. Chạy xong 1.000 hộ $\le 10$ giây (`NFR-005`). |
+| **US-47** | `F-03.1` In giấy báo nộp phí hàng loạt | `2.3.2` | **As a** Kế toán, **I want** kết xuất và in giấy báo nộp phí hàng tháng hàng loạt cho 1.000 hộ gia đình, **so that** phát thông báo thu tiền đến từng căn hộ. | Should (S) | 3 | `AC-47.1`: Xuất file PDF/Excel giấy báo phí chi tiết từng khoản thu, nợ cũ, số dư có và tổng số tiền cần thanh toán của từng hộ. |
+| **US-18** | `F-03.2` Tìm kiếm nhanh hộ tại quầy thu ngân | `2.3.3` | **As a** Thủ quỹ, **I want** gõ mã căn hộ hoặc tên chủ hộ tại màn hình quầy thu để hiển thị ngay các khoản cần thu, **so that** thao tác thu tiền nhanh chóng. | Must (M) | 2 | `AC-18.1`: Thời gian phản hồi hiển thị chi tiết công nợ của hộ tại quầy thu $\le 1$ giây. |
+| **US-19** | `F-03.2` Ghi nhận thu tiền & Gạch nợ tự động | `2.3.3` | **As a** Thủ quỹ / Kế toán, **I want** ghi nhận hộ dân nộp tiền (đủ, một phần theo khoản chọn, hoặc nộp thừa) bằng tiền mặt/chuyển khoản, **so that** gạch nợ chính xác. | Must (M) | 8 | `AC-19.1`: Nộp đủ $\rightarrow$ Trạng thái "Đã nộp đủ".<br>`AC-19.2`: Nộp 1 phần $\rightarrow$ Cho phép tích chọn khoản thu ưu tiên gạch nợ.<br>`AC-19.5`: Nộp thừa $\rightarrow$ Tự động cộng phần dư vào "Số dư có" (credit) kỳ sau. |
+| **US-20** | `F-03.3` Phân hệ Biên lai điện tử | `2.3.4` | **As a** Thủ quỹ, **I want** sinh mã biên lai tự tăng duy nhất và xuất file in PDF theo mẫu chuẩn (`DOC-02`), **so that** giao biên lai hợp lệ cho cư dân. | Must (M) | 5 | `AC-20.1`: Đúng biểu mẫu `DOC-02`, mã biên lai không trùng lặp.<br>`AC-20.2`: Khi in lại từ lần thứ 2 trở đi phải tự động đóng dấu chữ **"BẢN SAO"**. |
+| **US-21** | `F-03.4` Quản lý và lọc danh sách công nợ | `2.3.5` | **As a** Kế toán / BQT, **I want** xem bảng theo dõi công nợ và lọc danh sách các hộ còn nợ đọng theo từng kỳ thu/khoản thu, **so that** đôn đốc thu hồi nợ. | Must (M) | 3 | `AC-21.1`: Lọc chính xác các hộ đang nợ theo kỳ, hiển thị rõ số tiền đã nộp, số tiền còn thiếu và số kỳ quá hạn. |
+| **US-22** | `F-03.5` Hủy giao dịch / biên lai thu sai | `2.3.5` | **As a** Kế toán trưởng / BQT, **I want** hủy biên lai thu nhầm kèm lý do bắt buộc, **so that** khôi phục lại công nợ đúng cho hộ và lưu vết kiểm toán. | Should (S) | 3 | `AC-22.1`: Không xóa vật lý giao dịch, chuyển trạng thái biên lai sang "Đã hủy", tự động cộng trả lại công nợ cho hộ và bắt buộc ghi Audit Log (`2.1.4`). |
+| **US-40** | `F-10.1` Tạo đợt vận động quỹ tự nguyện | `2.3.6` | **As a** Kế toán / Thủ quỹ, **I want** khởi tạo các đợt vận động đóng góp tự nguyện (Quỹ Vì người nghèo, Khuyến học, Đền ơn đáp nghĩa...) có thời hạn, **so that** tách biệt với phí bắt buộc. | Should (S) | 2 | `AC-40.1`: Khoản đóng góp tự nguyện không có đơn giá bắt buộc và tuyệt đối không cộng vào công nợ của hộ gia đình. |
+| **US-41** | `F-10.1` Ghi nhận đóng góp tự nguyện & In phiếu | `2.3.6` | **As a** Thủ quỹ, **I want** ghi nhận số tiền ủng hộ tùy tâm của từng hộ và in phiếu xác nhận đóng góp, đồng thời bảo mật mức đóng giữa các hộ, **so that** cư dân yên tâm ủng hộ. | Should (S) | 3 | `AC-41.1`: Ghi nhận nhanh số tiền ủng hộ, in phiếu thu quỹ tự nguyện; giữ riêng tư số tiền chi tiết của từng hộ trước các cư dân khác (`WL-026`, `WL-034`). |
+| **US-42** | `F-10.2` Báo cáo quyết toán quỹ tự nguyện mẫu phường | `2.3.6` | **As a** Kế toán / BQT, **I want** xuất báo cáo tổng hợp thu quỹ vận động tự nguyện theo biểu mẫu quyết toán của Phường/Mặt trận Tổ quốc, **so that** bàn giao tiền ủng hộ minh bạch. | Should (S) | 2 | `AC-42.1`: Kết xuất đúng mẫu danh sách và tổng số tiền thu được của từng đợt vận động ra Excel/PDF. |
+| **US-23** | `F-04.1` Công cụ Tìm kiếm đa tiêu chí (Omnibox) | `2.4.1` | **As a** BQT / Kế toán / Thủ quỹ, **I want** tìm kiếm tức thời trên 1.000 hộ và 5.000 nhân khẩu theo tên, CCCD, mã căn, SĐT hoặc tên khoản thu, **so that** tra cứu thông tin ngay lập tức. | Must (M) | 3 | `AC-23.1`: Thời gian phản hồi kết quả tìm kiếm $\le 1$ giây trên tập dữ liệu 1.000 hộ và 5.000 nhân khẩu (`NFR-005`, `RAW-009`). |
+| **US-24** | `F-04.2` Báo cáo tổng hợp thu theo tháng | `2.4.2` | **As a** Kế toán, **I want** xem báo cáo tổng thu thực tế so với tổng phải thu theo từng tháng/kỳ thu, **so that** đánh giá tiến độ thu phí. | Must (M) | 3 | `AC-24.1`: Tổng số tiền trên báo cáo khớp 100% với tổng các biên lai hợp lệ (không tính biên lai đã hủy) trong kỳ. |
+| **US-25** | `F-04.2` Báo cáo thu chi tiết theo khoản thu | `2.4.2` | **As a** Kế toán / BQT, **I want** thống kê doanh thu bóc tách theo từng nhóm khoản thu (Phí quản lý, Gửi xe, Điện/Nước, Quỹ tự nguyện), **so that** hạch toán đúng quỹ. | Must (M) | 2 | `AC-25.1`: Hiển thị đúng số phải thu, thực thu, tỷ lệ hoàn thành (%) của từng khoản thu trong kỳ. |
+| **US-26** | `F-04.3` Xuất báo cáo tài chính & Công nợ ra Excel/PDF | `2.4.2` | **As a** Kế toán, **I want** kết xuất các báo cáo doanh thu và danh sách hộ nợ đọng theo kỳ ra file Excel/PDF, **so that** lưu trữ và trình ký BQT. | Must (M) | 3 | `AC-26.1`: File Excel/PDF xuất ra giữ nguyên định dạng bảng biểu, có dòng tổng cộng và khớp 100% số liệu trên màn hình. |
+| **US-27** | `F-04.4` Báo cáo thống kê cơ cấu nhân khẩu | `2.4.3` | **As a** Trưởng BQT, **I want** xem thống kê cơ cấu dân cư theo độ tuổi (Trẻ em, Lao động, Cao tuổi), giới tính và trạng thái cư trú (Thường trú, Tạm trú, Tạm vắng), **so that** phục vụ quản lý dân sinh. | Should (S) | 3 | `AC-27.1`: Biểu đồ và số liệu thống kê nhân khẩu tự động cập nhật theo thời gian thực khi có biến động cư trú. |
+| **US-43** | `F-04.5` Dashboard điều hành tổng quan BQT | `2.4.3` | **As a** Trưởng BQT, **I want** xem màn hình Dashboard trực quan gồm biểu đồ cột tổng thu theo tháng, tỷ lệ hoàn thành chỉ tiêu, tổng nợ đọng và tổng nhân khẩu, **so that** nắm bắt toàn cảnh chung cư. | Should (S) | 3 | `AC-43.1`: Hiển thị trực quan trên trang chủ BQT, tổng hợp chính xác các chỉ số KPI tài chính và nhân khẩu trong $\le 2$ giây. |
+| **US-36** | `F-06.1` Quản lý phương tiện | `2.3.7` | **As a** BQT, **I want** đăng ký phương tiện của từng hộ, **so that** có danh sách xe máy, ô tô đang để tại bãi gửi xe của chung cư. | Would (W) | 2 | `AC-36.1`: Given BQT mở màn hình Đăng ký phương tiện, When nhập biển số xe, loại xe (xe máy/ô tô) và chọn hộ, Then phương tiện được lưu và xuất hiện trong danh sách phương tiện của hộ. |
+| **US-37** | `F-06.2` Tính Phí gửi xe | `2.3.7` | **As a** Kế toán, **I want** tính phí gửi xe theo loại xe và tháng, **so that** thu phí gửi xe gộp cùng đợt thu phí quản lý định kỳ. | Would (W) | 2 | `AC-37.1`: Given phương tiện đã đăng ký của hộ, When Kế toán tạo kỳ thu phí gửi xe tháng đó, Then hệ thống tính số tiền = đơn giá theo loại xe × số xe đăng ký của hộ và ghi vào bảng phải nộp. |
+| **US-38** | `F-07.1` Nhập chỉ số điện nước | `2.3.8` | **As a** Kế toán, **I want** nhập chỉ số điện nước hằng tháng do nhà cung cấp gửi, **so that** có dữ liệu tiêu thụ để tính tiền thu hộ. | Would (W) | 2 | `AC-38.1`: Given Kế toán chọn kỳ tháng và nhập chỉ số đầu/cuối kỳ cho từng hộ, When lưu, Then hệ thống tính lượng tiêu thụ (cuối - đầu) và tính tiền theo biểu giá đã cấu hình. |
+| **US-39** | `F-07.2` Thu hộ điện/nước/internet | `2.3.8` | **As a** Kế toán, **I want** thu hộ điện/nước/internet và đối soát với nhà cung cấp, **so that** BQT quản lý minh bạch các khoản thu hộ cư dân. | Would (W) | 2 | `AC-39.1`: Given Kế toán ghi nhận cư dân nộp tiền điện/nước/internet, When lưu giao dịch, Then số tiền được phân loại theo từng nhà cung cấp và không gộp chung vào công nợ phí quản lý. |
+
+---
+
+## 3. KẾ HOẠCH PHÂN BỔ 4 SPRINTS (CHUẨN PLAN.PDF - MỤC II.4)
+
+Khung phát triển phần mềm (Hạng mục `2.0` trên WBS và Gantt Chart) diễn ra từ **13/10/2026 đến 04/12/2026** (39 ngày làm việc), được chia thành **4 Sprints** nối tiếp nhau (**tổng cộng 47 User Stories – 150 Story Points**), tiếp nối bằng giai đoạn Kiểm thử hệ thống & Nghiệm thu (`3.0` từ **30/11 đến 18/12/2026**) và Triển khai & Đóng dự án (`4.0` & `1.3` đến **25/12/2026**):
+
+* **Sprint 1 (Tuần 3 – Tuần 5 | 13/10/2026 – 30/10/2026): Kiến trúc CSDL, Bảo mật, Đăng nhập & Hồ sơ Căn hộ/Hộ gia đình**
+  * **Mục tiêu:** Khởi tạo CSDL & Docker, lập lịch sao lưu tự động, đảm bảo chuẩn ACID (`2.1.1`), hoàn thành phân hệ Đăng nhập/Mật khẩu (`2.1.2`), Hồ sơ Căn hộ/Hộ gia đình/Chuyển nhượng (`2.2.1`), khởi chạy phân quyền RBAC (`2.1.3`) và Danh mục khoản thu (`2.3.1`).
+  * **Hạng mục WBS:** `2.1.1`, `2.1.2`, `2.2.1` *(và khởi đầu `2.1.3`, `2.2.3`, `2.3.1`)*.
+  * **User Stories (12 US – 40 SP):** `US-44`, `US-45`, `US-46`, `US-28`, `US-29`, `US-01`, `US-02`, `US-03`, `US-30`, `US-31`, `US-12`, `US-13`.
+
+* **Sprint 2 (Tuần 6 – Tuần 7 | 02/11/2026 – 13/11/2026): Phân quyền RBAC, Audit Log, Nhân khẩu, Phương tiện, Điện/Nước & Động cơ tính phí tự động**
+  * **Mục tiêu:** Hoàn tất RBAC (`2.1.3`), Nhật ký thao tác Audit Log (`2.1.4` - hoàn thành ngày 11/11 để sẵn sàng cho nghiệp vụ Hủy biên lai ở Sprint 3), Quản lý nhân khẩu (`2.2.3`), Import Excel (`2.2.2`), Đơn giá & Miễn giảm (`2.3.1`), Quản lý phương tiện & tính phí gửi xe (`2.3.7`), Nhập chỉ số & tính phí điện/nước (`2.3.8` - phần tính phí), Động cơ tạo kỳ thu & tính phí tự động (`2.3.2`) và Tìm kiếm đa tiêu chí $\le 1\text{s}$ (`2.4.1`).
+  * **Hạng mục WBS:** `2.1.3`, `2.1.4`, `2.2.2`, `2.2.3`, `2.3.1`, `2.3.2`, `2.3.7`, `2.3.8` (phần chỉ số), `2.4.1`.
+  * **User Stories (13 US – 41 SP):** `US-14`, `US-15`, `US-16`, `US-32`, `US-05`, `US-06`, `US-04`, `US-36`, `US-37`, `US-38`, `US-17`, `US-47`, `US-23`.
+
+* **Sprint 3 (Tuần 8 – Tuần 9 | 16/11/2026 – 27/11/2026): Biến động cư trú, Quầy thu tiền, Thu hộ Điện/Nước/Internet, Quỹ tự nguyện, Biên lai & Cổng cư dân đợt 1**
+  * **Mục tiêu:** Hoàn thiện nghiệp vụ Biến động cư trú & Tạm trú/Tạm vắng (`2.2.4`), Kết xuất báo cáo Công an (`2.2.5`), Cổng cư dân tra cứu hộ & đề nghị chỉnh sửa (`2.2.6`), Quầy thu tiền & Gạch nợ tự động (`2.3.3`), Thu hộ & đối soát điện/nước/internet (`2.3.8` - phần thu hộ), Tạo đợt & ghi nhận Quỹ vận động tự nguyện (`2.3.6`), Quản lý công nợ & Hủy giao dịch có ghi Audit Log (`2.3.5`) và Biên lai điện tử (`2.3.4`), sẵn sàng cho **First UAT (`3.3`: 30/11 – 02/12/2026)**.
+  * **Hạng mục WBS:** `2.2.4`, `2.2.5`, `2.2.6`, `2.3.3`, `2.3.4`, `2.3.5`, `2.3.6` (phần thu quỹ), `2.3.8` (phần thu hộ & đối soát).
+  * **User Stories (15 US – 46 SP):** `US-07`, `US-08`, `US-09`, `US-10`, `US-11`, `US-33`, `US-34`, `US-18`, `US-19`, `US-39`, `US-20`, `US-21`, `US-22`, `US-40`, `US-41`.
+
+* **Sprint 4 (Tuần 10 | 26/11/2026 – 04/12/2026) & Pha Kiểm thử/Triển khai (Tuần 10 – Tuần 13 | 30/11/2026 – 25/12/2026): Báo cáo tài chính, Quyết toán quỹ, Dashboard BQT, Cổng công nợ cư dân, SIT, ACID & UAT**
+  * **Mục tiêu phát triển (Hoàn tất 04/12):** Hoàn thiện Báo cáo & Thống kê tài chính bóc tách các khoản thu (`2.4.2`), Báo cáo quyết toán quỹ tự nguyện theo mẫu phường (`2.3.6` - phần báo cáo), Thống kê nhân khẩu & Dashboard điều hành BQT (`2.4.3`) và Cổng cư dân tra cứu công nợ & lịch sử đóng phí (`2.4.4`).
+  * **Mục tiêu Kiểm thử & Bàn giao (30/11 – 25/12):**
+    * Kiểm thử chấp nhận người dùng đợt 1 – **First UAT (`3.3`)**: `30/11 – 02/12/2026`.
+    * Kiểm thử tích hợp hệ thống – **SIT (`3.1`)**: `07/12 – 09/12/2026` *(chạy sau khi xong toàn bộ các module 2.1, 2.2, 2.3, 2.4)*.
+    * Kiểm thử hiệu năng & Toàn vẹn giao dịch – **ACID (`3.2`)**: `10/12 – 15/12/2026`.
+    * Kiểm thử chấp nhận người dùng đợt 2 – **Second UAT (`3.4`)**: `16/12 – 18/12/2026` *(chạy sau khi đạt SIT & ACID)*.
+    * Đóng gói (`4.1`), Tài liệu HDSD (`4.2`), Đào tạo (`4.3`), Chuyển đổi dữ liệu (`4.4`) & Nghiệm thu đóng dự án (`1.3.2`): Hoàn tất ngày **`25/12/2026`** (sớm hơn hạn chót `30/12/2026` đúng 3 ngày làm việc dự phòng).
+  * **Hạng mục WBS:** `2.3.6` (phần quyết toán), `2.4.2`, `2.4.3`, `2.4.4` + Nhánh `3.0` (`3.1..3.4`), Nhánh `4.0` (`4.1..4.4`) & Nhánh `1.3` (`1.3.1..1.3.2`).
+  * **User Stories (7 US – 19 SP):** `US-24`, `US-25`, `US-26`, `US-42`, `US-27`, `US-43`, `US-35`.

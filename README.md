@@ -2,12 +2,12 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![Course](https://img.shields.io/badge/SoICT%2F_HUST-Intro_to_SE-red.svg) ![Team](https://img.shields.io/badge/Team-Nh%C3%B3m_18-success.svg)
 
-> **Dự án môn học:** Nhập môn Công nghệ Phần mềm (Introduction to Software Engineering) \- Trường CNTT\&TT, Đại học Bách Khoa Hà Nội.  
-> **Khách hàng mục tiêu:** Ban Quản Trị (BQT), Kế toán, Thủ quỹ và Cư dân tòa nhà chung cư BlueMoon (Quy mô \~1.000 căn hộ, \~5.000 nhân khẩu).
+> **Dự án môn học:** Nhập môn Công nghệ Phần mềm (Introduction to Software Engineering) - Trường CNTT&TT, Đại học Bách Khoa Hà Nội.  
+> **Khách hàng mục tiêu:** Ban Quản Trị (BQT), Kế toán, Thủ quỹ và Cư dân tòa nhà chung cư BlueMoon (Quy mô ~1.000 căn hộ, ~5.000 nhân khẩu).
 
 ---
 
-## 📖 1\. Giới thiệu bài toán
+## 📖 1. Giới thiệu bài toán
 
 Hiện tại, Ban quản trị chung cư BlueMoon đang quản lý thông tin hộ khẩu, biến động nhân khẩu và thu phí hàng tháng bằng nhiều file Excel rời rạc và biên lai giấy. Việc này dẫn đến:
 
@@ -19,9 +19,9 @@ Hiện tại, Ban quản trị chung cư BlueMoon đang quản lý thông tin h�
 
 ---
 
-## ✨ 2\. Các phân hệ chức năng chính (Phạm vi v1.0)
+## ✨ 2. Các phân hệ chức năng chính (Phạm vi v1.0)
 
-Hệ thống bao gồm **3 Module cốt lõi** (ánh xạ từ 8 Epics, 31 Features và 47 User Stories):
+Hệ thống bao gồm **3 Module cốt lõi** (ánh xạ từ 8 Epics, 27 Features và 43 User Stories):
 
 1. **🔐 Module Quản lý người dùng & Nền tảng (`EP-05`, `EP-08`):**  
    - Đăng nhập, bắt buộc đổi mật khẩu lần đầu, tự động khóa tạm thời 15 phút khi nhập sai 5 lần.  
@@ -30,74 +30,77 @@ Hệ thống bao gồm **3 Module cốt lõi** (ánh xạ từ 8 Epics, 31 Featu
 2. **👨‍👩‍👧‍👦 Module Quản lý hộ gia đình & Cổng cư dân (`EP-01`, `EP-09`):**  
    - Quản lý tách biệt thực thể **Căn hộ** (diện tích, tầng) và **Hộ gia đình** (nhóm nhân khẩu đang cư trú) hỗ trợ nghiệp vụ chuyển nhượng căn hộ.  
    - Quản lý nhân khẩu, biến động (thêm mới sinh, chuyển đi, tách hộ) và cảnh báo Tạm trú/Tạm vắng sắp hết hạn trước 15 ngày.  
-   - Import danh sách hộ từ Excel và xuất báo cáo cư trú theo mẫu Công an.  
+   - Import danh sách hộ từ Excel và xuất báo cáo cư trú theo mẫu Công an (`DOC-03`).  
    - Cổng thông tin cho Cư dân tự tra cứu thông tin hộ, lịch sử nộp phí và gửi đề nghị chỉnh sửa.  
 3. **💰 Module Quản lý thu phí, Thống kê & Quỹ tự nguyện (`EP-02`, `EP-03`, `EP-04`, `EP-10`):**  
    - Cấu hình danh mục khoản thu (bắt buộc theo $\text{m}^2$, cố định theo hộ) và lưu vết lịch sử đơn giá.  
-   - Khởi tạo kỳ thu tự động cho 1.000 hộ trong $\leq 10$ giây (tự động cộng nợ cũ và bù trừ số dư có).  
+   - Khởi tạo kỳ thu tự động cho 1.000 hộ trong $\le 10$ giây (tự động cộng nợ cũ và bù trừ số dư có).  
    - Ghi nhận thu tiền (tiền mặt/chuyển khoản), xử lý nộp một phần hoặc nộp dư, in biên lai điện tử (đóng dấu "BẢN SAO" khi in lại).  
    - Quản lý các đợt vận động đóng góp quỹ tự nguyện riêng biệt với công nợ bắt buộc.  
-   - Tìm kiếm đa tiêu chí $\leq 1$ giây, Dashboard biểu đồ trực quan và xuất báo cáo Excel/PDF.
+   - Tìm kiếm đa tiêu chí $\le 1$ giây, Dashboard biểu đồ trực quan và xuất báo cáo Excel/PDF.
 
 ---
 
-## 👥 3\. Đội ngũ phát triển (Nhóm 18\)
+## 👥 3. Đội ngũ phát triển (Nhóm 18 - Mô hình Hợp tác Peer-to-Peer)
 
-| STT | Thành viên | Vai trò dự án | Phân hệ phụ trách |
-| :---: | :---- | :---- | :---- |
-| 1 |  | Project Manager / Fullstack | `auth`, `users`, `audit-log`, `backup` (`EP-05`, `EP-08`) |
-| 2 |  | Business Analyst / Backend | `apartments`, `households`, `residents` (`EP-01`) |
-| 3 |  | WBS Architect / Backend Lead | `fee-types`, `billing-periods` (`EP-02`, `EP-03`) |
-| 4 |  | Schedule Planner / Frontend Lead | `payments`, `receipts`, `voluntary-funds` (`EP-03`, `EP-10`) |
-| 5 |  | Risk & QA Lead / Fullstack | `search`, `reports`, `resident-portal` (`EP-04`, `EP-09`) |
+Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không có nhóm trưởng)**: Mọi thành viên có vị thế ngang hàng, tự chủ kỹ thuật, đồng sở hữu sản phẩm (Shared Product Ownership) và cùng chịu trách nhiệm về chất lượng chung:
 
-&nbsp;
-
----
-
-## 📂 4\. Tài liệu dự án (Documentation)
-
-Toàn bộ tài liệu đặc tả và kế hoạch dự án được lưu trữ trong thư mục [`/docs`](./docs) hoặc các file gốc dưới đây:
-
-- 📋 [Product Backlog & Kế hoạch 4 Sprints](./PRODUCT_BACKLOG.md)  
-- 🏗️ [Kiến trúc hệ thống & Thiết kế CSDL](./ARCHITECTURE.md)  
-- 🤝 [Quy tắc làm việc nhóm & Quy trình Git (Contributing Guide)](./CONTRIBUTING.md)
+| Mã TV | Thành viên | Vai trò chuyên môn | Phân hệ phụ trách chính |
+| :---: | :--- | :--- | :--- |
+| **TV1** | **Lê Trường Giang** | Backend Developer | Kiến trúc hệ thống, Backend API, WBS |
+| **TV2** | **Nguyễn Việt Tùng** | Backend Developer | Backend API, Tiến độ & Kiểm thử |
+| **TV3** | **Nguyễn Thanh Hải** | Frontend Developer | Frontend Web, Quản lý giao diện & Tài liệu |
+| **TV4** | **Lê Nguyễn Nhật Huy** | Frontend Developer | Frontend UI-UX, Kiểm soát chất lượng DoD |
+| **TV5** | **Vũ Trung Kiên** | Database Specialist | Thiết kế Cơ sở dữ liệu, Quản trị CSDL & Rủi ro |
 
 ---
 
-## 🚀 5\. Hướng dẫn cài đặt và chạy dự án (Quick Start)
+## 📂 4. Tài liệu dự án (Documentation - Chuẩn theo Plan.pdf)
+
+Toàn bộ tài liệu kỹ thuật và kế hoạch thống nhất cho giai đoạn Sprint 1 được lưu trữ trong thư mục [`docs/`](./docs/):
+
+* 📑 **[Kế hoạch dự án BlueMoon (Plan.pdf)](./docs/Plan.pdf):** **Single Source of Truth (SSOT)** - Tuyên ngôn dự án, phạm vi 3 module, ngân sách, rủi ro, WBS, 47 User Stories và kế hoạch 4 Sprints (150 SP).
+* 📋 **[Product Backlog & Kế hoạch 4 Sprints](./docs/PRODUCT_BACKLOG.md):** Trích xuất chi tiết 47 User Stories, tiêu chí AC và phân bổ 4 Sprint (150 SP) từ Plan.pdf.
+* 🏗️ **[Kiến trúc hệ thống & Quy tắc nghiệp vụ](./docs/ARCHITECTURE.md):** Mô hình Modular Monolith và các Domain Rules cốt lõi.
+* 🗄️ **[Đặc tả Thiết kế Cơ sở Dữ liệu (28 bảng)](./docs/DATABASE_DESIGN.md):** Chuẩn CSDL PostgreSQL từ `feat/database-schema-design`, mô tả 28 bảng và DDL tại [database/01_schema.sql](./database/01_schema.sql).
+* 📊 **[Kế hoạch Phân cấp Công việc (WBS)](./docs/WBS_DICTIONARY.xlsx):** Từ điển WBS chuẩn và sơ đồ cây [WBS_TREE_DIAGRAM.svg](./docs/WBS_TREE_DIAGRAM.svg).
+* 🤝 **[Quy tắc làm việc nhóm & Quy trình Git](./CONTRIBUTING.md):** Quy ước commit, branching strategy và Pull Request.
+
+---
+
+## 🚀 5. Hướng dẫn cài đặt và chạy dự án (Quick Start)
 
 ### Yêu cầu môi trường
+* **Python:** $\ge 3.10$ (cho Backend FastAPI)
+* **Node.js:** $\ge 18.\text{x}$ (cho Frontend React Vite)
+* **PostgreSQL:** $\ge 15+$ (Database Engine)
+* **Git**
 
-- **Node.js** $\ge 18.\text{x}$ (hoặc Java JDK 17 / Python 3.10 tùy stack nhóm thống nhất)  
-- **PostgreSQL / MySQL** $\geq 8.0$  
-- **Git**
+### Các bước khởi chạy
 
-### Các bước chạy môi trường Local
+```bash
+# 1. Khởi tạo Cơ sở dữ liệu PostgreSQL
+# Chạy file DDL tạo 28 bảng:
+psql -U postgres -d bluemoon_db -f database/01_schema.sql
 
-```sh
-# 1. Clone repository về máy
-git clone https://github.com/<ten-tai-khoan>/bluemoon-apartment-management.git
-cd bluemoon-apartment-management
-
-# 2. Khởi tạo Cơ sở dữ liệu và nạp dữ liệu mẫu (1.000 căn hộ)
-# Chạy file database/schema.sql và database/seed_1000_households.sql trong DBMS của bạn
-
-# 3. Cài đặt và chạy Backend
+# 2. Khởi chạy Backend API Server (Python FastAPI)
 cd backend
-cp .env.example .env       # Cập nhật thông tin kết nối DB trong file .env
-npm install
-npm run dev
+python -m venv venv
+# Windows: venv\Scripts\activate | macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+# Truy cập Swagger UI: http://localhost:8000/docs
 
-# 4. Cài đặt và chạy Frontend (Mở 1 terminal mới)
+# 3. Khởi chạy Frontend Web UI (React + Vite)
 cd ../frontend
 npm install
 npm run dev
+# Truy cập Web App: http://localhost:3000
 ```
 
-&nbsp;
+---
 
-### Tài khoản thử nghiệm mặc định (Sau khi chạy Seed Data)
+### Tài khoản thử nghiệm mặc định (Theo Seed Data CSDL)
 
 | Vai trò | Tên đăng nhập | Mật khẩu mặc định | Quyền hạn chính |
 | :---- | :---- | :---- | :---- |
@@ -105,5 +108,3 @@ npm run dev
 | **Kế toán** | `ketoan_01` | `BlueMoon@2026` | Cấu hình khoản thu, tạo kỳ thu, nhập CK, xuất báo cáo |
 | **Thủ quỹ** | `thuquy_01` | `BlueMoon@2026` | Thu tiền mặt tại quầy, in biên lai, thu quỹ tự nguyện |
 | **Cư dân (Căn B1204)** | `cudan_B1204` | `BlueMoon@2026` | Xem thông tin hộ B1204, lịch sử đóng phí, gửi đề nghị sửa |
-
-&nbsp;

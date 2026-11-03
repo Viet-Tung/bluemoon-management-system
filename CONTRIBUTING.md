@@ -69,10 +69,11 @@ git push origin feat/US-xx-ten-tinh-nang
 
 &nbsp;
 
-- Lên GitHub tạo **Pull Request** từ nhánh `feat/US-xx...` vào nhánh **`develop`**.  
-- Điền đầy đủ checklist trong mẫu Pull Request và gắn Reviewer theo cặp phân công:  
-  - **Cặp 1:** Thành viên 1 $\leftrightarrow$ Lê Trường Giang (TV3)  
-  - **Cặp 2:** Vũ Trung Kiên (TV2) $\leftrightarrow$ Nguyễn Việt Tùng (TV4) $\leftrightarrow$ Lê Nguyễn Nhật Huy (TV5)
+- Lên GitHub tạo **Pull Request** từ nhánh `feat/US-xx...` vào nhánh **`develop`**.
+- Dự án áp dụng mô hình **Peer Review (Đánh giá ngang hàng)**: Mọi Pull Request phải được ít nhất 1 thành viên ngang hàng review và kiểm thử trước khi merge:
+  - **Nhánh Backend:** Được review chéo bởi thành viên Backend (Lê Trường Giang / Nguyễn Việt Tùng).
+  - **Nhánh Frontend:** Được review chéo bởi thành viên Frontend (Nguyễn Thanh Hải / Lê Nguyễn Nhật Huy).
+  - **Nhánh Database / Hệ thống:** Được review chéo cùng Database Specialist (Vũ Trung Kiên) và thành viên Backend.
 
 ### Bước 5: Code Review & Merge
 
