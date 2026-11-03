@@ -98,14 +98,9 @@ def db_session():
     """Provide a clean transactional session for each test."""
     session = TestingSessionLocal()
     yield session
-    # Dọn dẹp audit_logs và reset trạng thái users sau mỗi test
+    # Dọn dẹp audit_logs sinh ra trong lúc test
     try:
         session.query(AuditLog).delete()
-        session.query(User).update({
-            User.failed_login_count: 0,
-            User.locked_until: None,
-            User.is_active: True
-        })
         session.commit()
     except Exception:
         session.rollback()
