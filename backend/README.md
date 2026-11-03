@@ -6,13 +6,15 @@ Thư mục này chứa toàn bộ mã nguồn xử lý nghiệp vụ (Business L
 
 ## 🛠️ 1. Ngôn ngữ & Công nghệ sử dụng (Tech Stack)
 
-* **Ngôn ngữ lập trình:** **Python 3.10+**
+* **Ngôn ngữ lập trình:** **Python 3.10+** (Môi trường phát triển TV1: Python 3.14.2)
 * **Web Framework:** **FastAPI** (Tốc độ cao, hỗ trợ async, tự động sinh tài liệu Swagger UI tại `/docs`).
 * **ORM & Quản lý CSDL:** **SQLAlchemy 2.0** + **Alembic** (Quản lý phiên bản cấu trúc bảng).
 * **Database Engine:** **PostgreSQL 15+** (28 bảng khớp [database/01_schema.sql](../database/01_schema.sql)).
-* **Bảo mật & Xác thực (`NFR-001`, `EP-05`):**
-  * `passlib[bcrypt]`: Băm mật khẩu người dùng bằng thuật toán `bcrypt` (rounds $\ge 12$).
-  * `python-jose[cryptography]`: Tạo và xác thực `JWT Token`.
+* **Bảo mật & Xác thực (`NFR-001`, `EP-05`, `US-44`):**
+  * `bcrypt`: Băm và xác thực mật khẩu an toàn theo thuật toán `bcrypt` chuẩn (rounds $\ge 12$).
+  * `pyjwt[crypto]`: Tạo và giải mã `JWT Token` (thuật toán HS256, access token hết hạn sau 8 giờ).
+* **Kiểm thử tự động (Automated Testing):**
+  * `pytest`, `pytest-asyncio`, `httpx`: Bộ test suite tự động kiểm thử toàn bộ API endpoints, RBAC middleware, và IDOR defense trên môi trường SQLite in-memory (StaticPool).
 * **Xử lý Excel & In ấn PDF (`US-04`, `US-11`, `US-20`, `US-26`):**
   * `pandas` & `openpyxl`: Đọc file Excel khi Import danh sách hộ và xuất báo cáo thu phí/cư trú.
   * `reportlab` hoặc `weasyprint`: Xuất biên lai điện tử (`DOC-02`) và giấy báo phí ra định dạng PDF chuẩn tiếng Việt.
@@ -83,6 +85,7 @@ backend/
 │
 ├── tests/                           # Unit test & Integration test
 ├── .env.example                     # Mẫu biến môi trường
+├── pytest.ini                       # Cấu hình pytest (asyncio loop scope)
 ├── requirements.txt                 # Danh sách gói phụ thuộc Python
 └── README.md                        # Tài liệu hướng dẫn này
 ```
@@ -103,13 +106,17 @@ venv\Scripts\activate
 # - Trên macOS / Linux:
 source venv/bin/activate
 
-# 3. Cài đặt các thư viện cần thiết
-pip install fastapi uvicorn sqlalchemy psycopg2-binary pydantic passlib[bcrypt] python-jose[cryptography] pandas openpyxl reportlab python-multipart
+# 3. Cài đặt các thư viện cần thiết từ requirements.txt
+pip install -r requirements.txt
 
-# 4. Lưu danh sách thư viện vào file requirements.txt
-pip freeze > requirements.txt
+# 4. Tạo file cấu hình môi trường .env từ mẫu .env.example
+copy .env.example .env     # Trên Windows
+# cp .env.example .env     # Trên Linux/macOS
 
-# 5. Chạy Server phát triển (Development Server)
+# 5. Chạy bộ kiểm thử tự động (Unit & Integration tests)
+pytest -c pytest.ini tests -v
+
+# 6. Chạy Server phát triển (Development Server)
 uvicorn app.main:app --reload --port 8000
 ```
 

@@ -8,10 +8,11 @@
 
 ## 1. TIÊU CHUẨN KỸ THUẬT & CẤU HÌNH (TECH STACK BASELINE)
 
-* **Runtime:** Python 3.14.2 (môi trường ảo `backend/venv`).
+* **Runtime:** Python 3.10+ (Môi trường phát triển TV1: Python 3.14.2 tại `backend/venv`).
 * **Web Framework:** FastAPI 0.162+ (hỗ trợ ASGI async, tự động sinh OpenAPI schema tại `/docs`).
 * **ORM & Database Driver:** SQLAlchemy 2.0 (Declarative Base) + `psycopg` (version 3.3+ binary).
 * **Bảo mật:** `bcrypt 5.0+` (rounds $\ge 12$), `PyJWT 2.15+` (thuật toán HS256, access token hết hạn 8 giờ).
+* **Kiểm thử tự động:** `pytest`, `pytest-asyncio`, `httpx` (SQLite in-memory with `StaticPool`).
 * **Định dạng dữ liệu:** JSON UTF-8, toàn bộ key định dạng **`snake_case`**. Tiền tệ luôn là số nguyên **`int64`** (VNĐ).
 
 ---
@@ -207,8 +208,8 @@ Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluem
 
 ## 5. BẢNG CHECKLIST ACCEPTANCE CRITERIA (DOD SPRINT 1)
 
-* [ ] `AC-44.1`: Mật khẩu lưu dạng băm `bcrypt` rounds $\ge 12$.
-* [ ] `AC-44.2`: Chặn lỗi IDOR khi Cư dân truy cập chéo ID hộ (trả về `404 NOT_FOUND`).
+* [x] `AC-44.1`: Mật khẩu lưu dạng băm `bcrypt` rounds $\ge 12$.
+* [x] `AC-44.2`: Chặn lỗi IDOR khi Cư dân truy cập chéo ID hộ (trả về `404 NOT_FOUND`).
 * [ ] `AC-45.1`: Lập lịch tự động sao lưu CSDL lúc 02:00 sáng, RTO $\le 2\text{h}$, lưu 30 ngày.
 * [ ] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
 * [ ] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
@@ -224,3 +225,15 @@ Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluem
 * [ ] `AC-12.1`: Khai báo mã, tên, fee_group, calc_method, đơn vị tính của khoản thu.
 * [ ] `AC-13.1`: Cấm xóa vật lý khoản thu (No hard delete); chỉ chuyển trạng thái sang `INACTIVE`.
 
+---
+
+## 6. NGUYÊN TẮC KIẾN TRÚC & PHÁT TRIỂN (ENGINEERING GUARDRAILS)
+
+1. **Nguyên lý Cụm tối thiểu (Minimal Cluster Principle - 9 bảng):**
+   * Trong phạm vi Sprint 1, Backend chỉ khởi tạo và tương tác với đúng 9 bảng CSDL cốt lõi (`roles`, `users`, `audit_logs`, `backup_jobs`, `apartments`, `households`, `apartment_occupancies`, `residents`, `fee_types`).
+   * 19 bảng thuộc các sprint tiếp theo (kỳ thu, hóa đơn, thanh toán, xe cộ,...) không được khai báo vội vàng để tránh nợ kỹ thuật (technical debt) và dependency chéo.
+2. **Phân rã liên kết lỏng (Loose Coupling):**
+   * Các quan hệ hướng tới các bảng tương lai (ví dụ: `apartments` $\rightarrow$ `vehicles`, `households` $\rightarrow$ `invoices`) tuyệt đối không khai báo Foreign Key cứng tại tầng SQLAlchemy models trong Sprint 1. Sẽ mở rộng JIT (Just-In-Time) khi bước vào các Sprint tương ứng.
+3. **Môi trường Test độc lập & ACID Snapshot:**
+   * Bộ kiểm thử `pytest` thực thi trên SQLite in-memory (`StaticPool`), cô lập hoàn toàn với PostgreSQL production.
+   * Mỗi test case được bao bọc bởi transaction rollback (`SAVEPOINT`), đảm bảo tính idempotent, không để lại dữ liệu rác và thời gian thực thi $< 2\text{s}$.
