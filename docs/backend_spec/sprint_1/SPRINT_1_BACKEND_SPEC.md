@@ -212,8 +212,8 @@ Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluem
 * [x] `AC-44.2`: Chặn lỗi IDOR khi Cư dân truy cập chéo ID hộ (trả về `404 NOT_FOUND`).
 * [ ] `AC-45.1`: Lập lịch tự động sao lưu CSDL lúc 02:00 sáng, RTO $\le 2\text{h}$, lưu 30 ngày.
 * [ ] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
-* [ ] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
-* [ ] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.
+* [x] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
+* [x] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.
 * [ ] `AC-29.1`: Đổi mật khẩu mới độ dài $\ge 8$ ký tự, bắt buộc đổi trong lần đầu đăng nhập.
 * [ ] `AC-30.1`: Tạo mới, khóa, mở khóa tài khoản nhân sự có hiệu lực tức thì.
 * [ ] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
