@@ -1,0 +1,96 @@
+@startwbs
+title SƠ ĐỒ CẤU TRÚC PHÂN CẤP CÔNG VIỆC (WBS TREE DIAGRAM) - DỰ ÁN CHUNG CƯ BLUEMOON
+skinparam dpi 150
+<style>
+wbsDiagram {
+  LineColor #2E5B88
+  BackgroundColor #FFFFFF
+  RoundCorner 6
+  node {
+    Padding 8
+    Margin 4
+    FontName Arial
+    FontSize 11
+  }
+  :depth(0) {
+    BackgroundColor #1B365D
+    FontColor #FFFFFF
+    FontSize 13
+    FontStyle bold
+  }
+  :depth(1) {
+    BackgroundColor #2E5B88
+    FontColor #FFFFFF
+    FontSize 11
+    FontStyle bold
+  }
+  :depth(2) {
+    BackgroundColor #E8EEF5
+    FontColor #1B365D
+    FontSize 10
+    FontStyle bold
+    LineColor #2E5B88
+  }
+  :depth(3) {
+    BackgroundColor #FFFFFF
+    FontColor #333333
+    FontSize 10
+    LineColor #888888
+  }
+}
+</style>
+
+* [0.0] Hệ thống Quản lý và Thu phí Chung cư BlueMoon
+
+** [1.0] Quản lý dự án
+*** [1.1] Khởi tạo & Lập kế hoạch dự án
+**** [1.1.1] Tuyên ngôn dự án (Project Charter)
+**** [1.1.2] Kế hoạch phân cấp công việc (WBS) & Từ điển WBS
+**** [1.1.3] Kế hoạch tiến độ & Biểu đồ Gantt
+**** [1.1.4] Kế hoạch quản lý rủi ro
+**** [1.1.5] Kế hoạch ngân sách & Quản lý chi phí
+*** [1.2] Giám sát & Kiểm soát dự án
+**** [1.2.1] Báo cáo tiến độ định kỳ
+**** [1.2.2] Quản lý thay đổi & Đánh giá chất lượng (DoD)
+*** [1.3] Nghiệm thu & Đóng dự án
+**** [1.3.1] Báo cáo tổng kết dự án
+**** [1.3.2] Biên bản bàn giao & Thanh lý dự án
+
+** [2.0] Xây dựng phần mềm
+*** [2.1] Nền tảng kỹ thuật & Quản lý người dùng
+**** [2.1.1] Thiết kế CSDL & Kiến trúc kỹ thuật
+**** [2.1.2] Phân hệ Đăng nhập, Đăng xuất & Quản lý mật khẩu
+**** [2.1.3] Phân hệ Quản lý tài khoản & Phân quyền RBAC
+**** [2.1.4] Phân hệ Nhật ký thao tác (Audit Log)
+*** [2.2] Module Quản lý hộ gia đình & Nhân khẩu
+**** [2.2.1] Hồ sơ căn hộ, hộ gia đình & Chuyển nhượng
+**** [2.2.2] Chức năng Nhập dữ liệu cư dân từ Excel (Import Excel)
+**** [2.2.3] Phân hệ Quản lý nhân khẩu trong hộ
+**** [2.2.4] Phân hệ Quản lý biến động cư trú, Tạm trú & Tạm vắng
+**** [2.2.5] Chức năng Kết xuất báo cáo nhân khẩu Công an
+**** [2.2.6] Cổng cư dân tra cứu thông tin hộ & Đề nghị chỉnh sửa
+*** [2.3] Module Quản lý thu phí & Quỹ tự nguyện
+**** [2.3.1] Phân hệ Quản lý danh mục khoản thu & Đơn giá
+**** [2.3.2] Động cơ Tạo kỳ thu & Tính phí tự động
+**** [2.3.3] Phân hệ Quầy thu tiền & Gạch nợ tự động
+**** [2.3.4] Phân hệ Biên lai điện tử
+**** [2.3.5] Phân hệ Quản lý công nợ & Hủy giao dịch
+**** [2.3.6] Phân hệ Quản lý quỹ vận động tự nguyện
+*** [2.4] Module Tra cứu, Thống kê & Cổng cư dân
+**** [2.4.1] Công cụ Tìm kiếm đa tiêu chí
+**** [2.4.2] Phân hệ Báo cáo & Thống kê tài chính
+**** [2.4.3] Phân hệ Thống kê nhân khẩu & Dashboard điều hành BQT
+**** [2.4.4] Cổng cư dân tra cứu công nợ & Lịch sử đóng phí
+
+** [3.0] Kiểm thử & Đảm bảo chất lượng
+*** [3.1] Kiểm thử tích hợp hệ thống (SIT)
+*** [3.2] Kiểm thử hiệu năng & Toàn vẹn giao dịch (ACID)
+*** [3.3] Kiểm thử chấp nhận người dùng đợt 1 (First UAT)
+*** [3.4] Kiểm thử chấp nhận người dùng đợt 2 (Second UAT)
+
+** [4.0] Triển khai & Chăm sóc hỗ trợ
+*** [4.1] Đóng gói phần mềm & Tài liệu kỹ thuật
+*** [4.2] Biên soạn tài liệu hướng dẫn sử dụng (4 bộ HDSD)
+*** [4.3] Cài đặt môi trường vận hành & Đào tạo người dùng
+*** [4.4] Chuyển đổi dữ liệu lịch sử & Hỗ trợ vận hành ban đầu
+@endwbs
