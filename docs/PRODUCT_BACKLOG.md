@@ -11,13 +11,13 @@
 
 Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không có nhóm trưởng)**: 5 thành viên làm việc ngang hàng, không phân cấp thứ bậc, cùng chia sẻ trách nhiệm và phối hợp chặt chẽ theo chuyên môn:
 
-| Mã TV | Họ và tên | Vai trò chuyên môn | Phân công chuyên môn chính |
-| :---: | :--- | :--- | :--- |
-| **TV1** | **Lê Trường Giang** | **Thành viên / Backend Developer** | **Kiến trúc hệ thống, Backend API, WBS** |
-| **TV2** | **Nguyễn Việt Tùng** | **Thành viên / Backend Developer** | **Backend API, Tiến độ & Lịch trình Gantt** |
-| **TV3** | **Nguyễn Thanh Hải** | **Thành viên / Frontend Developer** | **Frontend Web, Quản lý giao diện & Tài liệu** |
-| **TV4** | **Lê Nguyễn Nhật Huy** | **Thành viên / Frontend Developer** | **Frontend UI-UX, Kiểm soát chất lượng DoD** |
-| **TV5** | **Vũ Trung Kiên** | **Thành viên / Database Specialist** | **Thiết kế CSDL, Quản lý rủi ro & Ngân sách** |
+| Mã TV | Họ và tên | Vai trò |
+| :---: | :--- | :--- |
+| **TV1** | **Lê Trường Giang** | **Backend Developer** |
+| **TV2** | **Nguyễn Việt Tùng** | **Backend Developer** |
+| **TV3** | **Nguyễn Thanh Hải** | **Frontend Developer** |
+| **TV4** | **Lê Nguyễn Nhật Huy** | **Frontend Developer** |
+| **TV5** | **Vũ Trung Kiên** | **Database Specialist** |
 
 *Ghi chú về cơ chế làm việc:* Toàn bộ quy trình ra quyết định, review mã nguồn (Peer Code Review) và điều phối công việc được thực hiện trên nguyên tắc đồng thuận (Consensus), bình đẳng và hỗ trợ chéo giữa các thành viên.
 

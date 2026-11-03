@@ -45,13 +45,13 @@ Hệ thống bao gồm **3 Module cốt lõi** (ánh xạ từ 8 Epics, 27 Featu
 
 Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không có nhóm trưởng)**: Mọi thành viên có vị thế ngang hàng, tự chủ kỹ thuật, đồng sở hữu sản phẩm (Shared Product Ownership) và cùng chịu trách nhiệm về chất lượng chung:
 
-| Mã TV | Thành viên | Vai trò chuyên môn | Phân hệ phụ trách chính |
-| :---: | :--- | :--- | :--- |
-| **TV1** | **Lê Trường Giang** | Backend Developer | Kiến trúc hệ thống, Backend API, WBS |
-| **TV2** | **Nguyễn Việt Tùng** | Backend Developer | Backend API, Tiến độ & Kiểm thử |
-| **TV3** | **Nguyễn Thanh Hải** | Frontend Developer | Frontend Web, Quản lý giao diện & Tài liệu |
-| **TV4** | **Lê Nguyễn Nhật Huy** | Frontend Developer | Frontend UI-UX, Kiểm soát chất lượng DoD |
-| **TV5** | **Vũ Trung Kiên** | Database Specialist | Thiết kế Cơ sở dữ liệu, Quản trị CSDL & Rủi ro |
+| Mã TV | Thành viên | Vai trò |
+| :---: | :--- | :--- |
+| **TV1** | **Lê Trường Giang** | Backend Developer |
+| **TV2** | **Nguyễn Việt Tùng** | Backend Developer |
+| **TV3** | **Nguyễn Thanh Hải** | Frontend Developer |
+| **TV4** | **Lê Nguyễn Nhật Huy** | Frontend Developer |
+| **TV5** | **Vũ Trung Kiên** | Database Specialist |
 
 ---
 
