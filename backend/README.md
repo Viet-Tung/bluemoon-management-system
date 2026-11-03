@@ -10,11 +10,11 @@ Thư mục này chứa toàn bộ mã nguồn xử lý nghiệp vụ (Business L
 * **Web Framework:** **FastAPI** (Tốc độ cao, hỗ trợ async, tự động sinh tài liệu Swagger UI tại `/docs`).
 * **ORM & Quản lý CSDL:** **SQLAlchemy 2.0** + **Alembic** (Quản lý phiên bản cấu trúc bảng).
 * **Database Engine:** **PostgreSQL 15+** (28 bảng khớp [database/01_schema.sql](../database/01_schema.sql)).
-* **Bảo mật & Xác thực (`NFR-001`, `EP-05`, `US-44`):**
+* **Bảo mật & Xác thực (`NFR-001`, `EP-05`, `US-44`, `US-28`):**
   * `bcrypt`: Băm và xác thực mật khẩu an toàn theo thuật toán `bcrypt` chuẩn (rounds $\ge 12$).
   * `pyjwt[crypto]`: Tạo và giải mã `JWT Token` (thuật toán HS256, access token hết hạn sau 8 giờ).
 * **Kiểm thử tự động (Automated Testing):**
-  * `pytest`, `pytest-asyncio`, `httpx`: Bộ test suite tự động kiểm thử toàn bộ API endpoints, RBAC middleware, và IDOR defense trên môi trường SQLite in-memory (StaticPool).
+  * `pytest`, `pytest-asyncio`, `httpx`: Bộ test suite tự động kiểm thử toàn bộ API endpoints, RBAC middleware, và IDOR defense trên môi trường SQLite in-memory (StaticPool), gồm 352 test cases tự động.
 * **Xử lý Excel & In ấn PDF (`US-04`, `US-11`, `US-20`, `US-26`):**
   * `pandas` & `openpyxl`: Đọc file Excel khi Import danh sách hộ và xuất báo cáo thu phí/cư trú.
   * `reportlab` hoặc `weasyprint`: Xuất biên lai điện tử (`DOC-02`) và giấy báo phí ra định dạng PDF chuẩn tiếng Việt.
@@ -83,7 +83,7 @@ backend/
 │       ├── pdf_generator.py         # Xuất hóa đơn/biên lai PDF có đóng dấu "BẢN SAO"
 │       └── backup_service.py        # Dịch vụ gọi pg_dump sao lưu CSDL tự động 02:00 sáng
 │
-├── tests/                           # Unit test & Integration test
+├── tests/                           # Unit test & Integration test (352 test cases: US-44, US-28)
 ├── .env.example                     # Mẫu biến môi trường
 ├── pytest.ini                       # Cấu hình pytest (asyncio loop scope)
 ├── requirements.txt                 # Danh sách gói phụ thuộc Python
