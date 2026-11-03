@@ -1,26 +1,29 @@
-# HƯỚNG DẪN ĐÓNG GÓP CODE & QUY TRÌNH LÀM VIỆC NHÓM (NHÓM 18\)
+# HƯỚNG DẪN ĐÓNG GÓP CODE & QUY TRÌNH LÀM VIỆC NHÓM (NHÓM 18)
 
 Tài liệu này quy định cách 5 thành viên Nhóm 18 phối hợp làm việc trên GitHub để đảm bảo code sạch, không bị mất code của nhau và bám sát 100% Acceptance Criteria trong Product Backlog.
 
 ---
 
-## 🌿 1\. Quy tắc phân nhánh (Git Branching Strategy)
+## 🌿 1. Quy tắc phân nhánh (Git Branching Strategy)
 
 Chúng ta sử dụng mô hình **Git Flow rút gọn** gồm 3 loại nhánh:
 
 1. **`main`**: Nhánh chứa code ổn định nhất dùng để bàn giao tại các mốc **First UAT (30/11)**, **Second UAT (15/12)** và **Final Release (30/12)**. **TUYỆT ĐỐI KHÔNG** push trực tiếp lên `main`.  
 2. **`develop`**: Nhánh tích hợp code chung của cả 5 thành viên trong suốt các Sprint.  
-3. **Nhánh tính năng / sửa lỗi cá nhân**: Mỗi khi làm một User Story hoặc sửa lỗi, thành viên bắt buộc tạo nhánh mới từ `develop` theo cú pháp:  
-   - Làm User Story mới: `feat/US-<mã-số>-<tên-ngắn-gọn>`  
-     - *Ví dụ:* `feat/US-01-apartment-crud`, `feat/US-17-auto-billing`  
-   - Sửa lỗi (Bug): `fix/US-<mã-số>-<mô-tả-lỗi>`  
-     - *Ví dụ:* `fix/US-19-overpayment-balance`  
+3. **Nhánh tính năng / sửa lỗi cá nhân**: Mỗi khi làm một User Story hoặc sửa lỗi, thành viên bắt buộc tạo nhánh mới từ `develop` theo cú pháp phân tách stack (`AGENTS.md`):  
+   - Làm User Story Backend: `feat/US-<mã-số>-backend-<tên-ngắn-gọn>`  
+     - *Ví dụ:* `feat/US-01-backend-apartment-crud`, `feat/US-44-backend-auth-security-architecture`  
+   - Làm User Story Frontend: `feat/US-<mã-số>-frontend-<tên-ngắn-gọn>`  
+     - *Ví dụ:* `feat/US-01-frontend-apartment-table`, `feat/US-28-frontend-login-view`  
+   - Sửa lỗi (Bug): `fix/US-<mã-số>-backend-<mô-tả-lỗi>` hoặc `fix/US-<mã-số>-frontend-<mô-tả-lỗi>`  
+     - *Ví dụ:* `fix/US-19-backend-overpayment-balance`  
    - Cập nhật tài liệu: `docs/<tên-tài-liệu>`  
-     - *Ví dụ:* `docs/update-wbs-gantt`
+     - *Ví dụ:* `docs/update-wbs-gantt`  
+   - **NGUYÊN TẮC BẤT BIẾN:** Tuyệt đối không dùng chung nhánh giữa Backend và Frontend (Cross-stack prohibition). Không ai được can thiệp vào stack của người khác.
 
 ---
 
-## 💬 2\. Quy chuẩn viết Commit Message
+## 💬 2. Quy chuẩn viết Commit Message
 
 Mỗi commit cần ghi rõ mã User Story để dễ truy vết khi chấm điểm:
 
@@ -38,7 +41,7 @@ Mỗi commit cần ghi rõ mã User Story để dễ truy vết khi chấm đi�
 
 ---
 
-## 🔄 3\. Quy trình 5 bước hoàn thành 1 Nhiệm vụ (User Story)
+## 🔄 3. Quy trình 5 bước hoàn thành 1 Nhiệm vụ (User Story)
 
 ### Bước 1: Nhận task trên GitHub Projects
 
@@ -49,31 +52,32 @@ Mỗi commit cần ghi rõ mã User Story để dễ truy vết khi chấm đi�
 ```sh
 git checkout develop
 git pull origin develop
-git checkout -b feat/US-xx-ten-tinh-nang
+git checkout -b feat/US-xx-backend-ten-tinh-nang
 ```
 
 &nbsp;
 
 ### Bước 3: Lập trình & Tự kiểm thử (Self-Test)
 
-- Viết code trong đúng thư mục module được phân công.  
-- Mở file `PRODUCT_BACKLOG.md`, đọc kỹ tất cả các mã **`AC-xx.y`** của User Story đó và tự chạy thử trên máy xem đã thỏa mãn 100% chưa.
+- Viết code trong đúng thư mục module được phân công (`backend/**` hoặc `frontend/**`).  
+- Mở file `PRODUCT_BACKLOG.md`, đọc kỹ tất cả các mã **`AC-xx.y`** của User Story đó và tự chạy thử trên máy xem đã thỏa mãn 100% chưa.  
+- **Với Backend:** Bắt buộc chạy toàn bộ bộ kiểm thử tự động `pytest -c backend/pytest.ini backend/tests -v` đảm bảo 100% test case pass trước khi commit.
 
 ### Bước 4: Đẩy code và Tạo Pull Request (PR)
 
 ```sh
 git add .
 git commit -m "feat(US-xx): hoàn thành chức năng ..."
-git push origin feat/US-xx-ten-tinh-nang
+git push origin feat/US-xx-backend-ten-tinh-nang
 ```
 
 &nbsp;
 
-- Lên GitHub tạo **Pull Request** từ nhánh `feat/US-xx...` vào nhánh **`develop`**.
-- Dự án áp dụng mô hình **Peer Review (Đánh giá ngang hàng)**: Mọi Pull Request phải được ít nhất 1 thành viên ngang hàng review và kiểm thử trước khi merge:
-  - **Nhánh Backend:** Được review chéo bởi thành viên Backend (Lê Trường Giang / Nguyễn Việt Tùng).
-  - **Nhánh Frontend:** Được review chéo bởi thành viên Frontend (Nguyễn Thanh Hải / Lê Nguyễn Nhật Huy).
-  - **Nhánh Database / Hệ thống:** Được review chéo cùng Database Specialist (Vũ Trung Kiên) và thành viên Backend.
+- Lên GitHub tạo **Pull Request** từ nhánh `feat/US-xx...` vào nhánh **`develop`**.
+- Dự án áp dụng mô hình **Peer Review (Đánh giá ngang hàng)**: Mọi Pull Request phải được ít nhất 1 thành viên ngang hàng review và kiểm thử trước khi merge:
+  - **Nhánh Backend:** Được review chéo bởi thành viên Backend (Lê Trường Giang / Nguyễn Việt Tùng).
+  - **Nhánh Frontend:** Được review chéo bởi thành viên Frontend (Nguyễn Thanh Hải / Lê Nguyễn Nhật Huy).
+  - **Nhánh Database / Hệ thống:** Được review chéo cùng Database Specialist (Vũ Trung Kiên) và thành viên Backend.
 
 ### Bước 5: Code Review & Merge
 
@@ -81,7 +85,7 @@ git push origin feat/US-xx-ten-tinh-nang
 
 ---
 
-## ✅ 4\. Định nghĩa Hoàn thành (Definition of Done \- DoD)
+## ✅ 4. Định nghĩa Hoàn thành (Definition of Done - DoD)
 
 Một User Story chỉ được coi là **Done** khi thỏa mãn tất cả các điều kiện sau:
 
@@ -90,4 +94,5 @@ Một User Story chỉ được coi là **Done** khi thỏa mãn tất cả các
    - Phân quyền RBAC đúng theo **Ma trận phân quyền** (không bị lộ API cho vai trò không có quyền).  
    - Giao diện tiếng Việt rõ ràng, cỡ chữ tối thiểu `14px`, nút bấm lớn dễ thao tác cho Thủ quỹ lớn tuổi (`NFR-007`).  
    - Các thao tác nhạy cảm (sửa đơn giá, hủy biên lai, duyệt sửa nhân khẩu) đều gọi hàm ghi `Audit Log` (`US-31`).  
-3. Đã được ít nhất 1 thành viên khác trong nhóm Review và Merge vào nhánh `develop` không có lỗi biên dịch.
+3. Với phân hệ Backend: 100% automated test suite (`pytest`) vượt qua thành công, không phát sinh lỗi hoặc cảnh báo nghiêm trọng.  
+4. Đã được ít nhất 1 thành viên khác trong nhóm Review và Merge vào nhánh `develop` không có lỗi biên dịch.
