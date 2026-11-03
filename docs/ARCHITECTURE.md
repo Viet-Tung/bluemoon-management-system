@@ -36,6 +36,10 @@ Tài liệu này giúp 5 thành viên hiểu thống nhất về cấu trúc k�
 └─────────────────────────────────────────────────────────────┘
 ```
 
+> **TÀI LIỆU HỢP ĐỒNG API CHUẨN (SSOT):**  
+> - File đặc tả máy đọc (OpenAPI 3.0.3): [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (6.034 dòng, TV5 quản lý).  
+> - File tài liệu trực quan cho thành viên: [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (97 endpoints, đầy đủ RBAC, schemas, mã lỗi).
+
 ---
 
 ## 2. CÁC QUY TẮC NGHIỆP VỤ CỐT LÕI (DOMAIN RULES BẮT BUỘC TUÂN THỦ)
@@ -44,7 +48,7 @@ Khi viết code ở Backend và Frontend, cả 5 thành viên phải tuân thủ
 
 1. **Tách biệt `Căn hộ` (Apartment) và `Hộ gia đình` (Household) (`T-01`, `T-02`):**  
    - `apartments` lưu thông tin vật lý cố định của tòa nhà: Mã căn (VD: `B1204`), Tầng, Diện tích ($\text{m}^2$).  
-   - `households` lưu hộ gia đình đang ở trong căn hộ đó. Khi đổi chủ/chuyển nhượng (`US-02`), ta đóng hồ sơ hộ cũ (`status = 'MOVED_OUT'`) và tạo `household` mới gắn vào `apartment_id` đó để lịch sử tài chính của hộ cũ không bị lẫn sang chủ mới.  
+   - `households` lưu hộ gia đình đang ở trong căn hộ đó. Khi đổi chủ/chuyển nhượng (`US-02`), ta đóng hồ sơ hộ cũ (`status = 'INACTIVE'`, kết thúc lưu trú trong `apartment_occupancies`) và tạo `household` mới gắn vào căn hộ đó để lịch sử tài chính của hộ cũ không bị lẫn sang chủ mới.  
 2. **Công thức tính phí kỳ thu mới (`US-17`, `AC-17.1`, `AC-19.5`):** $$\text{Tổng phải nộp kỳ này} = \sum (\text{Đơn giá khoản thu} \times \text{Hệ số diện tích hoặc Hộ} - \text{Miễn giảm}) + \text{Nợ cũ lũy kế} - \text{Số dư có (Credit Balance)}$$  
 3. **Không xóa vật lý (No Hard Delete) với dữ liệu lịch sử:**  
    - Nhân khẩu chuyển đi/qua đời (`US-07`), Khoản thu đã phát sinh giao dịch (`AC-13.2`), Biên lai thu nhầm bị hủy (`US-22`) đều **chỉ được cập nhật cột `status`**, tuyệt đối không dùng lệnh `DELETE FROM`.  

@@ -3,7 +3,7 @@
 > **Dành cho:** Toàn bộ đội ngũ phát triển Backend, Frontend & QA (Nhóm 18 - BlueMoon Management System).
 > **Hệ quản trị CSDL:** **PostgreSQL 15+** (Khuyến nghị 16).
 > **File mã nguồn DDL:** [01_schema.sql](file:///home/hotboyhust/project/bluemoon-management-system/01_schema.sql) (hoặc [database/01_schema.sql](file:///home/hotboyhust/project/bluemoon-management-system/database/01_schema.sql)).
-> **Hợp đồng API tương ứng:** [bluemoon.yaml](file:///home/hotboyhust/project/bluemoon-management-system/bluemoon.yaml).
+> **Hợp đồng API tương ứng:** [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (Bản Markdown đọc trực quan: [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md)).
 > **Phiên bản tài liệu:** v1.1 (Cập nhật đồng bộ theo chuẩn 47 User Stories).
 
 ---
@@ -378,4 +378,4 @@ Mọi luồng nghiệp vụ ghi dữ liệu nhạy cảm bắt buộc phải bao
 
 > 💡 **Khuyến nghị sử dụng tài liệu:**
 > - Đội ngũ **Backend** mở song song tài liệu này cùng file DDL [01_schema.sql] để tạo các SQLAlchemy Models và Alembic Migrations.
-> - Đội ngũ **Frontend** mở song song tài liệu này cùng Hợp đồng API [bluemoon.yaml] để thiết kế Form, xử lý Enum/Validation và kiểm soát hiển thị trạng thái dữ liệu.
+> - Đội ngũ **Frontend** mở song song tài liệu này cùng Hợp đồng API [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (hoặc [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md)) để thiết kế Form, xử lý Enum/Validation và kiểm soát hiển thị trạng thái dữ liệu.

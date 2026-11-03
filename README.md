@@ -51,16 +51,48 @@ Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không
 | **TV2** | **Nguyễn Việt Tùng** | Backend Developer |
 | **TV3** | **Nguyễn Thanh Hải** | Frontend Developer |
 | **TV4** | **Lê Nguyễn Nhật Huy** | Frontend Developer |
-| **TV5** | **Vũ Trung Kiên** | Database Specialist |
+| **TV5** | **Vũ Trung Kiên** | Database & API Contract Specialist |
 
 ---
 
-## 📂 4. Tài liệu dự án (Documentation - Chuẩn theo Plan.pdf)
+## 📂 4. Tài liệu dự án & Cấu trúc kho mã nguồn (Repository Structure)
 
+### 4.1. Cấu trúc thư mục dự án
+```text
+bluemoon-management-system/
+├── backend/                         # Mã nguồn ứng dụng FastAPI (TV1 & TV2 phụ trách)
+│   ├── app/                         # Logic ứng dụng, Routers, Models, Schemas
+│   ├── tests/                       # Unit test & Integration test
+│   ├── requirements.txt             # Gói phụ thuộc Python
+│   └── README.md                    # Hướng dẫn chi tiết phân hệ Backend
+├── frontend/                        # Mã nguồn ứng dụng React Web UI (TV3 & TV4 phụ trách)
+├── database/                        # Lược đồ CSDL PostgreSQL 28 bảng (TV5 quản lý)
+│   ├── 01_schema.sql                # DDL 28 bảng, views, triggers, constraints
+│   ├── 02_seed_initial_data.sql     # Dữ liệu mẫu khởi tạo
+│   ├── 03_seed_1000_households.py   # Script sinh dữ liệu thử tải
+│   └── 04_backup_restore.sh         # Script sao lưu CSDL
+├── docs/                            # Tài liệu chuẩn hóa kỹ thuật & SSOT
+│   ├── Plan.pdf                     # Master Project Plan (Nhóm 18)
+│   ├── Nhóm_18_Epic_User_story.xlsx # Bảng gốc INVEST User Story & AC
+│   ├── openapi.yaml                 # Master OpenAPI 3.0.3 API Contract (TV5)
+│   ├── API_CONTRACT.md              # Đặc tả Hợp đồng API chi tiết Markdown
+│   ├── ARCHITECTURE.md              # Kiến trúc hệ thống & Domain rules
+│   ├── DATABASE_DESIGN.md           # Thiết kế CSDL 28 bảng chi tiết
+│   ├── PRODUCT_BACKLOG.md           # Product Backlog & Phân bổ 4 Sprints
+│   ├── WBS_DICTIONARY.xlsx          # Từ điển WBS
+│   └── WBS_TREE_DIAGRAM.svg         # Sơ đồ WBS Tree
+├── CONTRIBUTING.md                  # Quy định Git workflow & commit format
+├── AGENTS.md                        # Hiến chương phân định quyền hạn workspace
+└── README.md                        # Tài liệu tổng quan dự án
+```
+
+### 4.2. Danh mục tài liệu kỹ thuật chuẩn (SSOT)
 Toàn bộ tài liệu kỹ thuật và kế hoạch thống nhất cho giai đoạn Sprint 1 được lưu trữ trong thư mục [`docs/`](./docs/):
 
 * 📑 **[Kế hoạch dự án BlueMoon (Plan.pdf)](./docs/Plan.pdf):** **Single Source of Truth (SSOT)** - Tuyên ngôn dự án, phạm vi 3 module, ngân sách, rủi ro, WBS, 47 User Stories và kế hoạch 4 Sprints (150 SP).
 * 📋 **[Product Backlog & Kế hoạch 4 Sprints](./docs/PRODUCT_BACKLOG.md):** Trích xuất chi tiết 47 User Stories, tiêu chí AC và phân bổ 4 Sprint (150 SP) từ Plan.pdf.
+* 📜 **[Hợp đồng API chuẩn OpenAPI 3.0.3 (openapi.yaml)](./docs/openapi.yaml):** Master API Contract 6.034 dòng do TV5 thiết kế cho toàn bộ 97 endpoints hệ thống.
+* 📖 **[Đặc tả Hợp đồng API chi tiết (API_CONTRACT.md)](./docs/API_CONTRACT.md):** Tài liệu Hợp đồng API định dạng Markdown trực quan cho Backend và Frontend.
 * 🏗️ **[Kiến trúc hệ thống & Quy tắc nghiệp vụ](./docs/ARCHITECTURE.md):** Mô hình Modular Monolith và các Domain Rules cốt lõi.
 * 🗄️ **[Đặc tả Thiết kế Cơ sở Dữ liệu (28 bảng)](./docs/DATABASE_DESIGN.md):** Chuẩn CSDL PostgreSQL từ `feat/database-schema-design`, mô tả 28 bảng và DDL tại [database/01_schema.sql](./database/01_schema.sql).
 * 📊 **[Kế hoạch Phân cấp Công việc (WBS)](./docs/WBS_DICTIONARY.xlsx):** Từ điển WBS chuẩn và sơ đồ cây [WBS_TREE_DIAGRAM.svg](./docs/WBS_TREE_DIAGRAM.svg).
