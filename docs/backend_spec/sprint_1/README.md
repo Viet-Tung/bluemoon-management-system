@@ -10,7 +10,6 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 | :--- | :--- | :--- |
 | **[SPRINT_1_BACKEND_SPEC.md](file:///z:/Desktop/bluemoon-management-system/docs/backend_spec/sprint_1/SPRINT_1_BACKEND_SPEC.md)** | Toàn bộ 12 User Stories Sprint 1: Chuẩn lỗi, 9 bảng CSDL cụm tối thiểu, 32 Endpoints, Ma trận phân quyền RBAC và DoD Checklist. | Toàn bộ Sprint 1 (40 SP) |
 | **[US-44_AUTH_SECURITY_SPEC.md](file:///z:/Desktop/bluemoon-management-system/docs/backend_spec/sprint_1/US-44_AUTH_SECURITY_SPEC.md)** | Đặc tả chi tiết cấp code cho User Story đầu tiên: Bcrypt $\ge 12$ rounds, JWT token, chống IDOR, cấu trúc thư mục `core/`, `models/`, `schemas/`, `main.py` và kịch bản test. | User Story US-44 (5 SP) |
-| **[US-28_AUTH_LOGIN_SPEC.md](file:///z:/Desktop/bluemoon-management-system/docs/backend_spec/sprint_1/US-28_AUTH_LOGIN_SPEC.md)** | Đặc tả chi tiết cấp code cho User Story thứ hai: Đăng nhập cấp JWT 8h, khóa tài khoản 15m khi sai 5 lần (`AC-28.2`), đăng xuất, thông tin tài khoản và 114 test cases. | User Story US-28 (4 SP) |
 
 ---
 
