@@ -223,3 +223,4 @@ Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluem
 * [ ] `AC-03.1`: Chuyển nhượng căn hộ: đóng hồ sơ hộ cũ, gắn hộ mới, bảo toàn 100% lịch sử hóa đơn.
 * [ ] `AC-12.1`: Khai báo mã, tên, fee_group, calc_method, đơn vị tính của khoản thu.
 * [ ] `AC-13.1`: Cấm xóa vật lý khoản thu (No hard delete); chỉ chuyển trạng thái sang `INACTIVE`.
+

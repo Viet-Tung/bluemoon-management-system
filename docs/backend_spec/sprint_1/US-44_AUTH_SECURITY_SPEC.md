@@ -2,7 +2,7 @@
 > **Mã Story:** `US-44` | **Feature:** `F-08.1` Kiến trúc & Bảo mật | **WBS:** `2.1.1`, `2.1.3`  
 > **Story Points:** `5 SP` | **Độ ưu tiên:** `Must (M)`  
 > **Người thực hiện:** `TV1: Lê Trường Giang` | **Người kiểm thử ngang hàng (Peer Review):** `TV2: Nguyễn Việt Tùng`  
-> **Nhánh Git:** `feat/US-44-auth-security-architecture`  
+> **Nhánh Git:** `feat/US-44-backend-auth-security-architecture`  
 > **Tài liệu tham chiếu:** [docs/Plan.pdf](file:///z:/Desktop/bluemoon-management-system/docs/Plan.pdf) (mục II.3), [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (mục 1.2, 1.3), [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql) (bảng `roles`, `users`, `audit_logs`).
 
 ---
@@ -136,3 +136,4 @@ Sau khi hoàn thành code, kỹ sư `TV1` tự kiểm thử (Self-test) và cung
 4. **Test App Health:**
    - Khởi chạy server: `uvicorn app.main:app --port 8000`.
    - Gọi `GET /api/v1/health` $\rightarrow$ Nhận mã `200 OK`.
+

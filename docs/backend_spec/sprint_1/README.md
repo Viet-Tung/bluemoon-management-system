@@ -16,3 +16,4 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 ## 🚀 Hướng dẫn nạp ngữ cảnh cho các phiên làm việc AI tiếp theo
 Khi bắt đầu một Conversation mới cho một User Story, chỉ cần nhắc AI:
 > *"Đọc @[docs/backend_spec/sprint_1/SPRINT_1_BACKEND_SPEC.md] và bắt đầu code User Story US-xx trên nhánh feat/US-xx..."*
+
