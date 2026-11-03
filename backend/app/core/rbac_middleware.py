@@ -158,3 +158,4 @@ def check_household_access(
                 code="NOT_FOUND",
                 message="Không tìm thấy thông tin hộ gia đình."
             )
+

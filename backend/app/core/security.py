@@ -84,3 +84,4 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
     if not any(c.isdigit() for c in password):
         return False, "Mật khẩu phải chứa ít nhất 1 chữ số."
     return True, "Hợp lệ"
+

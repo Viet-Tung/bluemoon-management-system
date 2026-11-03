@@ -212,3 +212,4 @@ def test_not_found_endpoint_format(client):
     data = response.json()
     assert data["code"] == "NOT_FOUND"
     assert "message" in data
+

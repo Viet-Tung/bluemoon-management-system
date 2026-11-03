@@ -13,3 +13,4 @@ class TokenPayload(BaseModel):
     must_change_password: bool = False
     exp: Optional[int] = None
     iat: Optional[int] = None
+
