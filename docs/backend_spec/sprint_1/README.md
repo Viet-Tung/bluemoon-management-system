@@ -14,6 +14,7 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 | `US-29_CHANGE_PASSWORD_SPEC.md` | Đặc tả chi tiết cấp code cho US-29: Đổi mật khẩu cá nhân, bắt buộc đổi lần đầu, mã lỗi `WRONG_OLD_PASSWORD`, kiểm tra độ mạnh AC-29.1 và 81 test cases. | User Story US-29 (2 SP) |
 | `US-30_USER_MANAGEMENT_SPEC.md` | Đặc tả chi tiết cấp code cho US-30: Quản lý 7 endpoints tài khoản người dùng, sinh mật khẩu tạm an toàn, cấm tự khóa chính mình, AuditLog và bộ test black-box. | User Story US-30 (4 SP) |
 | `US-31_ROLE_MANAGEMENT_SPEC.md` | Đặc tả chi tiết cấp code cho US-31: Phân quyền & Quản lý vai trò (2 endpoints `GET /roles`, `PUT /users/{userId}/role`), hiệu lực ngay `AC-31.1`, cấm đổi vai trò chính mình, cô lập nhân sự/cư dân và 65 test cases. | User Story US-31 (3 SP) |
+| `US-32_AUDIT_LOG_SPEC.md` | Đặc tả chi tiết cấp code cho US-32: Nhật ký thao tác (Audit Log) (`GET /audit-logs`), phân quyền `ADMIN`, bộ lọc đa tiêu chí, tính bất biến và 82 test cases black-box. | User Story US-32 (3 SP) |
 
 ---
 

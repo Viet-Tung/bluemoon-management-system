@@ -218,6 +218,7 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 * [x] `AC-30.1`: Tạo mới, khóa, mở khóa tài khoản nhân sự có hiệu lực tức thì.
 * [x] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
 * [x] `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay.
+* [x] `AC-32.1`: Lưu rõ User thực hiện, Thời gian, Hành động, Giá trị cũ $\rightarrow$ Giá trị mới; Tuyệt đối chặn xóa/sửa bảng `audit_logs`.
 * [ ] `AC-01.1`: Căn hộ có mã không trùng lặp, diện tích $> 0\text{ m}^2$.
 * [ ] `AC-01.2`: Tách biệt độc lập 2 thực thể Căn hộ và Hộ gia đình (`T-01`, `T-02`).
 * [ ] `AC-02.1`: Kiểm tra tất toán công nợ trước khi đổi chủ hộ; ghi Audit Log `CHANGE_HEAD`.
