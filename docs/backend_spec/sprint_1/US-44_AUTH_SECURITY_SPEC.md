@@ -119,7 +119,7 @@ backend/app/
 
 ## 4. KỊCH BẢN KIỂM THỬ NGHIỆM THU (TEST PLAN CHO US-44)
 
-Sau khi hoàn thành code, kỹ sư `TV1` tự kiểm thử (Self-test) và cung cấp bằng chứng cho `TV2` theo checklist:
+Sau khi hoàn thành code, kỹ sư backend tự kiểm thử (Self-test) và đối soát theo checklist:
 
 1. **Test `AC-44.1` (Bcrypt Hash):**
    - Gọi hàm `get_password_hash("Admin@123")`.

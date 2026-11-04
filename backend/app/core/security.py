@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import secrets
+import string
 from typing import Any, Dict, Optional, Tuple
 import bcrypt
 import jwt
@@ -85,3 +87,27 @@ def validate_password_strength(password: str) -> Tuple[bool, str]:
         return False, "Mật khẩu phải chứa ít nhất 1 chữ số."
     return True, "Hợp lệ"
 
+
+def generate_secure_temporary_password(length: int = 12) -> str:
+    """
+    Tự động sinh mật khẩu tạm thời ngẫu nhiên an toàn (AC-29.1, AC-44.1):
+    - Độ dài tối thiểu 12 ký tự
+    - Đảm bảo chứa ít nhất 1 chữ cái hoa, 1 chữ cái thường, 1 chữ số, 1 ký tự đặc biệt
+    """
+    upper = string.ascii_uppercase
+    lower = string.ascii_lowercase
+    digits = string.digits
+    special = "!@#$%^&*"
+
+    password_chars = [
+        secrets.choice(upper),
+        secrets.choice(lower),
+        secrets.choice(digits),
+        secrets.choice(special),
+    ]
+    all_chars = upper + lower + digits + special
+    for _ in range(max(0, length - 4)):
+        password_chars.append(secrets.choice(all_chars))
+
+    secrets.SystemRandom().shuffle(password_chars)
+    return "".join(password_chars)

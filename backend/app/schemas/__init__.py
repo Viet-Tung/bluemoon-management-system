@@ -1,5 +1,12 @@
 """Pydantic v2 schemas conforming to OpenAPI specification."""
 
+from app.schemas.apartment import (
+    Apartment,
+    ApartmentBase,
+    ApartmentCreate,
+    ApartmentPage,
+    ApartmentUpdate,
+)
 from app.schemas.audit_log import AuditLogPage, AuditLogResponse
 from app.schemas.auth import (
     ChangePasswordRequest,
@@ -10,6 +17,15 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.common import Error, ErrorDetail, PageMeta
+from app.schemas.household import (
+    Household,
+    HouseholdCreate,
+    HouseholdCreated,
+    HouseholdPage,
+    HouseholdUpdate,
+    ResidentAccount,
+    ResidentCreate,
+)
 from app.schemas.user import (
     TempPassword,
     UserCreate,
@@ -37,4 +53,16 @@ __all__ = [
     "UserRoleUpdate",
     "AuditLogResponse",
     "AuditLogPage",
+    "ApartmentBase",
+    "ApartmentCreate",
+    "ApartmentUpdate",
+    "Apartment",
+    "ApartmentPage",
+    "ResidentAccount",
+    "ResidentCreate",
+    "HouseholdCreate",
+    "HouseholdUpdate",
+    "Household",
+    "HouseholdCreated",
+    "HouseholdPage",
 ]
