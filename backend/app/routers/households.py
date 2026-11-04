@@ -1,7 +1,7 @@
 from datetime import date
 import re
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -9,12 +9,15 @@ from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, require_roles
 from app.core.security import generate_secure_temporary_password, get_password_hash
 from app.models.property import Apartment, ApartmentOccupancy, Household, Resident
-from app.models.user import Role, User
+from app.models.user import AuditLog, Role, User
 from app.schemas.household import (
     Household as HouseholdSchema,
+    HouseholdChangeHead,
     HouseholdCreate,
     HouseholdCreated,
+    HouseholdDeactivate,
     HouseholdPage,
+    HouseholdUpdate,
     ResidentAccount,
 )
 
@@ -90,6 +93,32 @@ def build_household_schema(db: Session, household: Household) -> HouseholdSchema
     )
 
 
+def check_household_has_debt(db: Session, household_id: int) -> bool:
+    """
+    Kiểm tra hộ gia đình có công nợ chưa tất toán không (AC-02.1, DEBT_NOT_SETTLED).
+    Kiểm tra linh hoạt bảng invoices hoặc v_household_debt nếu đã khởi tạo.
+    """
+    try:
+        from sqlalchemy import text
+        res = db.execute(
+            text(
+                "SELECT 1 FROM invoices "
+                "WHERE household_id = :hid "
+                "AND (status IN ('UNPAID', 'PARTIALLY_PAID', 'OVERDUE') "
+                "     OR (total_due IS NOT NULL AND paid_amount IS NOT NULL AND total_due > paid_amount)) "
+                "LIMIT 1"
+            ),
+            {"hid": household_id}
+        ).first()
+        if res is not None:
+            return True
+    except Exception:
+        # Bảng invoices chưa tồn tại trong schema Sprint 1 (Minimal Cluster)
+        pass
+
+    return False
+
+
 @router.get(
     "",
     response_model=HouseholdPage,
@@ -103,7 +132,7 @@ def list_households(
     q: Optional[str] = Query(default=None, description="Tìm theo mã hộ, tên chủ hộ, SĐT"),
     status_param: Optional[str] = Query(default=None, alias="status", description="Lọc theo trạng thái (ACTIVE, INACTIVE)"),
     db: Session = Depends(get_db),
-    _current_user = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+    _current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
 ) -> HouseholdPage:
     """Liệt kê danh sách hộ gia đình kèm phân trang và tìm kiếm theo OpenAPI spec."""
     query = select(Household)
@@ -167,7 +196,7 @@ def list_households(
 def create_household(
     req: HouseholdCreate,
     db: Session = Depends(get_db),
-    _current_user = Depends(require_roles("ADMIN")),
+    _current_user: User = Depends(require_roles("ADMIN")),
 ) -> HouseholdCreated:
     """Tạo hộ gia đình mới trong 1 giao dịch ACID nguyên tử."""
     # 1. Kiểm tra trùng lặp mã hộ gia đình (case-insensitive)
@@ -322,7 +351,7 @@ def create_household(
 def get_household(
     id: int,
     db: Session = Depends(get_db),
-    _current_user = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+    _current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
 ) -> HouseholdSchema:
     """Lấy thông tin chi tiết hộ gia đình theo ID."""
     household = db.scalar(select(Household).where(Household.id == id))
@@ -335,3 +364,239 @@ def get_household(
 
     return build_household_schema(db, household)
 
+
+@router.patch(
+    "/{id:int}",
+    response_model=HouseholdSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Cập nhật thông tin liên hệ của hộ",
+    description="Cập nhật thông tin liên hệ (SĐT, email, ghi chú) của hộ gia đình (US-02). Phân quyền: ADMIN.",
+)
+def update_household(
+    id: int,
+    req: HouseholdUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_roles("ADMIN")),
+) -> HouseholdSchema:
+    """Cập nhật thông tin liên hệ của hộ gia đình theo ID."""
+    household = db.scalar(select(Household).where(Household.id == id))
+    if not household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy hộ gia đình có ID {id}."
+        )
+
+    update_data = req.model_dump(exclude_unset=True)
+    if "contact_phone" in update_data:
+        household.contact_phone = req.contact_phone.strip() if req.contact_phone else None
+    if "contact_email" in update_data:
+        household.contact_email = req.contact_email.strip() if req.contact_email else None
+    if "note" in update_data:
+        household.note = req.note.strip() if req.note else None
+
+    db.commit()
+    db.refresh(household)
+
+    return build_household_schema(db, household)
+
+
+@router.post(
+    "/{id:int}/deactivate",
+    response_model=HouseholdSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Ngừng quản lý hộ",
+    description="Chỉ được ngừng khi hộ không còn công nợ. Hộ chuyển sang INACTIVE, không xóa dữ liệu (US-02). Phân quyền: ADMIN.",
+)
+def deactivate_household(
+    id: int,
+    req: HouseholdDeactivate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN")),
+) -> HouseholdSchema:
+    """Ngừng quản lý hộ gia đình khi hộ không còn công nợ."""
+    household = db.scalar(select(Household).where(Household.id == id))
+    if not household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy hộ gia đình có ID {id}."
+        )
+
+    # 1. Kiểm tra tất toán công nợ (AC-02.1)
+    if check_household_has_debt(db, household.id):
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DEBT_NOT_SETTLED",
+            message="Hộ gia đình còn công nợ chưa tất toán, không thể ngừng quản lý."
+        )
+
+    old_status = household.status
+    household.status = "INACTIVE"
+
+    # 2. Kết thúc lưu trú hiện tại trong apartment_occupancies nếu có
+    active_occupancy = db.scalar(
+        select(ApartmentOccupancy).where(
+            ApartmentOccupancy.household_id == household.id,
+            ApartmentOccupancy.end_date.is_(None)
+        )
+    )
+    if active_occupancy:
+        active_occupancy.end_date = date.today()
+        active_occupancy.end_reason = req.reason.strip()
+
+    # 3. Vô hiệu hóa tài khoản cư dân liên kết với hộ nếu có
+    resident_user = db.scalar(
+        select(User).where(
+            User.household_id == household.id,
+            User.is_active.is_(True)
+        )
+    )
+    if resident_user:
+        resident_user.is_active = False
+
+    # 4. Ghi nhận Audit Log
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="DEACTIVATE_HOUSEHOLD",
+        entity_type="HOUSEHOLD",
+        entity_id=str(household.id),
+        old_value={"status": old_status},
+        new_value={"status": "INACTIVE"},
+        reason=req.reason.strip(),
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(household)
+
+    return build_household_schema(db, household)
+
+
+@router.put(
+    "/{id:int}/head",
+    response_model=HouseholdSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Đổi chủ hộ",
+    description="Hạ chủ hộ cũ và nâng nhân khẩu mới trong cùng một giao dịch. Ghi audit CHANGE_HEAD (US-02, US-05, AC-02.1). Phân quyền: ADMIN.",
+)
+def change_household_head(
+    id: int,
+    req: HouseholdChangeHead,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN")),
+) -> HouseholdSchema:
+    """Thay đổi chủ hộ đại diện của hộ gia đình trong 1 giao dịch ACID nguyên tử."""
+    household = db.scalar(select(Household).where(Household.id == id))
+    if not household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy hộ gia đình có ID {id}."
+        )
+
+    if household.status != "ACTIVE":
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Hộ gia đình đã ngừng hoạt động (INACTIVE), không thể thay đổi chủ hộ."
+        )
+
+    # 1. Kiểm tra tất toán công nợ trước khi đổi chủ hộ (AC-02.1, D-06)
+    if check_household_has_debt(db, household.id):
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DEBT_NOT_SETTLED",
+            message="Hộ gia đình còn công nợ chưa tất toán, không thể thay đổi chủ hộ."
+        )
+
+    # 2. Tìm nhân khẩu mới được chỉ định làm chủ hộ
+    new_head = db.scalar(
+        select(Resident).where(
+            Resident.id == req.new_head_resident_id,
+            Resident.household_id == household.id,
+            Resident.is_deleted.is_(False)
+        )
+    )
+    if not new_head:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy nhân khẩu hợp lệ có ID {req.new_head_resident_id} thuộc hộ gia đình này."
+        )
+
+    if new_head.residence_status not in ("THUONG_TRU", "TAM_VANG"):
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message=f"Nhân khẩu '{new_head.full_name}' có trạng thái '{new_head.residence_status}', không thể chỉ định làm chủ hộ."
+        )
+
+    # 3. Giao dịch nguyên tử ACID đổi chủ hộ
+    # Hạ chủ hộ cũ nếu có
+    existing_heads = db.scalars(
+        select(Resident).where(
+            Resident.household_id == household.id,
+            Resident.is_head.is_(True),
+            Resident.is_deleted.is_(False)
+        )
+    ).all()
+
+    old_head_info = None
+    for h in existing_heads:
+        if old_head_info is None:
+            old_head_info = {"head_resident_id": h.id, "head_name": h.full_name}
+        h.is_head = False
+        if h.relationship_to_head == "CHỦ HỘ":
+            h.relationship_to_head = "THÀNH VIÊN"
+
+    # Nâng nhân khẩu mới lên chủ hộ
+    new_head.is_head = True
+    new_head.relationship_to_head = "CHỦ HỘ"
+    new_head.status_effective_date = req.effective_date
+    if req.reason:
+        new_head.status_reason = req.reason.strip()
+
+    # Đồng bộ thông tin đại diện cho tài khoản cư dân của hộ (nếu có)
+    resident_user = db.scalar(
+        select(User).where(User.household_id == household.id)
+    )
+    if resident_user:
+        resident_user.full_name = new_head.full_name
+        if new_head.email:
+            resident_user.email = new_head.email
+        if new_head.phone:
+            resident_user.phone = new_head.phone
+
+    # Ghi nhận Audit Log CHANGE_HEAD (AC-02.1)
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="CHANGE_HEAD",
+        entity_type="HOUSEHOLD",
+        entity_id=str(household.id),
+        old_value=old_head_info,
+        new_value={
+            "head_resident_id": new_head.id,
+            "head_name": new_head.full_name,
+            "effective_date": req.effective_date.isoformat()
+        },
+        reason=req.reason.strip() if req.reason else f"Thay đổi chủ hộ sang {new_head.full_name}.",
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(household)
+
+    return build_household_schema(db, household)

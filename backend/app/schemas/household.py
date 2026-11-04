@@ -110,6 +110,30 @@ class HouseholdUpdate(BaseModel):
         return v
 
 
+class HouseholdDeactivate(BaseModel):
+    """Schema yêu cầu ngừng quản lý hộ gia đình (US-02)."""
+    model_config = ConfigDict(extra="ignore")
+
+    reason: str = Field(..., min_length=1, description="Lý do ngừng quản lý hộ gia đình")
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Lý do ngừng quản lý không được để trống.")
+        return v
+
+
+class HouseholdChangeHead(BaseModel):
+    """Schema đổi chủ hộ đại diện (US-02, US-05, AC-02.1)."""
+    model_config = ConfigDict(extra="ignore")
+
+    new_head_resident_id: int = Field(..., description="ID nhân khẩu mới được chỉ định làm chủ hộ")
+    effective_date: date = Field(..., description="Ngày có hiệu lực thay đổi chủ hộ")
+    reason: Optional[str] = Field(default=None, description="Lý do thay đổi chủ hộ")
+
+
 class Household(BaseModel):
     """Schema chi tiết hộ gia đình theo docs/openapi.yaml."""
     model_config = ConfigDict(from_attributes=True, extra="ignore")
@@ -143,4 +167,3 @@ class HouseholdCreated(Household):
 class HouseholdPage(PageMeta):
     """Danh sách hộ gia đình phân trang theo docs/openapi.yaml."""
     items: List[Household] = Field(default_factory=list, description="Danh sách hộ gia đình")
-
