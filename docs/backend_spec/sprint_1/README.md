@@ -12,6 +12,7 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 | `US-44_AUTH_SECURITY_SPEC.md` | Đặc tả chi tiết cấp code cho US-44: Bcrypt $\ge 12$ rounds, JWT token, chống IDOR, cấu trúc thư mục `core/`, `models/`, `schemas/`, `main.py` và 238 test cases. | User Story US-44 (4 SP) |
 | `US-28_AUTH_LOGIN_SPEC.md` | Đặc tả chi tiết cấp code cho US-28: Đăng nhập cấp JWT 8h, khóa tài khoản 15m khi sai 5 lần (`AC-28.2`), đăng xuất, thông tin tài khoản và 114 test cases. | User Story US-28 (4 SP) |
 | `US-29_CHANGE_PASSWORD_SPEC.md` | Đặc tả chi tiết cấp code cho US-29: Đổi mật khẩu cá nhân, bắt buộc đổi lần đầu, mã lỗi `WRONG_OLD_PASSWORD`, kiểm tra độ mạnh AC-29.1 và 81 test cases. | User Story US-29 (2 SP) |
+| `US-30_USER_MANAGEMENT_SPEC.md` | Đặc tả chi tiết cấp code cho US-30: Quản lý 7 endpoints tài khoản người dùng, sinh mật khẩu tạm an toàn, cấm tự khóa chính mình, AuditLog và bộ test black-box. | User Story US-30 (4 SP) |
 
 ---
 
