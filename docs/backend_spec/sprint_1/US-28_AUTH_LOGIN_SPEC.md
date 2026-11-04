@@ -3,7 +3,7 @@
 > **Story Points:** `4 SP` | **Độ ưu tiên:** `Must (M)`  
 > **Người thực hiện:** `TV1: Lê Trường Giang` | **Người kiểm thử ngang hàng (Peer Review):** `TV2: Nguyễn Việt Tùng`  
 > **Nhánh Git:** `feat/US-28-backend-auth-login`  
-> **Tài liệu tham chiếu:** [docs/Plan.pdf](file:///z:/Desktop/bluemoon-management-system/docs/Plan.pdf) (mục II.3), [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (mục 2.1), [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (`/auth/login`, `/auth/logout`, `/auth/me`), [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql) (bảng `users`, `roles`).
+> **Tài liệu tham chiếu:** `docs/Plan.pdf` (mục II.3), `docs/API_CONTRACT.md` (mục 2.1), `docs/openapi.yaml` (`/auth/login`, `/auth/logout`, `/auth/me`), `database/01_schema.sql` (bảng `users`, `roles`).
 
 ---
 
@@ -17,7 +17,7 @@
 ### 1.2. Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria)
 * **`AC-28.1` (Đăng nhập đúng & Cấp quyền chuẩn):**
   - Đăng nhập đúng thông tin tài khoản: Hệ thống cấp JWT Access Token có thời hạn 8 giờ (`28.800` giây), ký HS256 với đầy đủ claims (`sub`, `username`, `role`, `household_id`, `must_change_password`).
-  - Phản hồi HTTP `200 OK` với thân JSON khớp schema `LoginResponse` theo [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml).
+  - Phản hồi HTTP `200 OK` với thân JSON khớp schema `LoginResponse` theo `docs/openapi.yaml`.
   - Tự động cập nhật `last_login_at = now` và reset `failed_login_count = 0`, `locked_until = None`.
   - Tên đăng nhập **không phân biệt chữ hoa chữ thường** (`func.lower(User.username)`) và tự động loại bỏ khoảng trắng thừa đầu cuối.
 * **`AC-28.2` (Khóa tài khoản tự động - Brute-force Protection):**
@@ -125,7 +125,7 @@ backend/tests/
 
 Dự án áp dụng phương pháp Black-Box Testing toàn diện: không đọc mã nguồn bên trong, chỉ kiểm thử dựa trên hợp đồng I/O và các tình huống biên cực đoan.
 
-Bộ kiểm thử được phân bố thành **114 test cases** độc lập tại [test_us28_auth.py](file:///z:/Desktop/bluemoon-management-system/backend/tests/test_us28_auth.py):
+Bộ kiểm thử được phân bố thành **114 test cases** độc lập tại `backend/tests/test_us28_auth.py`:
 1. **Happy Paths (4 tests):** Xác thực thành công cho cả 4 vai trò (`ADMIN`, `ACCOUNTANT`, `TREASURER`, `RESIDENT`).
 2. **Case-Insensitive & Whitespace (15 tests):** Viết hoa, viết thường, xen kẽ, khoảng trắng đầu/cuối, tab, newline.
 3. **Sai thông tin & Chống rà quét (20 tests):** Sai mật khẩu, tài khoản không tồn tại.

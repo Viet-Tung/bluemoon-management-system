@@ -2,7 +2,7 @@
 
 > **THÔNG TIN PHÁP LÝ & QUYỀN SỞ HỮU:**
 > - **Tác giả thiết kế & Quản trị:** `TV5: Vũ Trung Kiên` (Database & API Contract Specialist).
-> - **Tệp nguồn máy đọc (OpenAPI 3.0.3):** [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (6.034 dòng).
+> - **Tệp nguồn máy đọc (OpenAPI 3.0.3):** `docs/openapi.yaml` (6.034 dòng).
 > - **Đơn vị hiện thực Backend:** `TV1: Lê Trường Giang` & `TV2: Nguyễn Việt Tùng` (FastAPI app, routers, models, schemas).
 > - **Đơn vị tiêu thụ Frontend:** `TV3: Nguyễn Thanh Hải` & `TV4: Lê Nguyễn Nhật Huy` (React/TypeScript UI components).
 > - **Phiên bản:** `1.1.0` | **Tổng số Endpoint:** `97 endpoints` | **Phạm vi:** 47 User Stories v1.0.

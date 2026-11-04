@@ -6,9 +6,19 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, get_current_user
-from app.core.security import create_access_token, verify_password
+from app.core.security import (
+    create_access_token,
+    get_password_hash,
+    validate_password_strength,
+    verify_password,
+)
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, UserResponse
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    UserResponse,
+)
 
 router = APIRouter(tags=["Auth"])
 
@@ -139,3 +149,54 @@ def get_me(
     """Lấy thông tin Profile tài khoản hiện tại kèm vai trò."""
     return UserResponse.model_validate(current_user)
 
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Đổi mật khẩu cá nhân",
+    description=(
+        "Cho phép mọi tài khoản đã xác thực đổi mật khẩu cá nhân (US-29, AC-29.1). "
+        "Hoạt động bình thường ngay cả khi must_change_password = True. "
+        "Nếu sai mật khẩu cũ trả về HTTP 400 WRONG_OLD_PASSWORD."
+    ),
+)
+def change_password(
+    req: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """
+    Đổi mật khẩu cá nhân:
+    - Xác thực mật khẩu cũ: Nếu không khớp, trả về HTTP 400 với mã lỗi WRONG_OLD_PASSWORD.
+    - Kiểm tra độ mạnh mật khẩu mới: độ dài >= 8, có ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số (AC-29.1).
+    - Cập nhật password_hash (bcrypt rounds >= 12).
+    - Gỡ cờ must_change_password = False.
+    - Cập nhật thời điểm password_changed_at = now.
+    - Trả về HTTP 204 No Content.
+    """
+    # 1. Xác thực mật khẩu cũ (bắt buộc trả 400 WRONG_OLD_PASSWORD, không dùng 401)
+    if not verify_password(req.old_password, current_user.password_hash):
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="WRONG_OLD_PASSWORD",
+            message="Mật khẩu cũ không chính xác.",
+        )
+
+    # 2. Kiểm tra độ mạnh mật khẩu mới theo chính sách hệ thống (AC-29.1)
+    is_valid, error_msg = validate_password_strength(req.new_password)
+    if not is_valid:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message=error_msg,
+            details=[{"field": "new_password", "message": error_msg}],
+        )
+
+    # 3. Băm mật khẩu mới và cập nhật trạng thái người dùng
+    now = datetime.now(timezone.utc)
+    current_user.password_hash = get_password_hash(req.new_password)
+    current_user.must_change_password = False
+    current_user.password_changed_at = now
+    db.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

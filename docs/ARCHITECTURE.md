@@ -37,8 +37,8 @@ Tài liệu này giúp 5 thành viên hiểu thống nhất về cấu trúc k�
 ```
 
 > **TÀI LIỆU HỢP ĐỒNG API CHUẨN (SSOT):**  
-> - File đặc tả máy đọc (OpenAPI 3.0.3): [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (6.034 dòng, TV5 quản lý).  
-> - File tài liệu trực quan cho thành viên: [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (97 endpoints, đầy đủ RBAC, schemas, mã lỗi).
+> - File đặc tả máy đọc (OpenAPI 3.0.3): `docs/openapi.yaml` (6.034 dòng, TV5 quản lý).  
+> - File tài liệu trực quan cho thành viên: `docs/API_CONTRACT.md` (97 endpoints, đầy đủ RBAC, schemas, mã lỗi).
 
 ---
 

@@ -3,7 +3,7 @@
 > **Story Points:** `5 SP` | **Độ ưu tiên:** `Must (M)`  
 > **Người thực hiện:** `TV1: Lê Trường Giang` | **Người kiểm thử ngang hàng (Peer Review):** `TV2: Nguyễn Việt Tùng`  
 > **Nhánh Git:** `feat/US-44-backend-auth-security-architecture`  
-> **Tài liệu tham chiếu:** [docs/Plan.pdf](file:///z:/Desktop/bluemoon-management-system/docs/Plan.pdf) (mục II.3), [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (mục 1.2, 1.3), [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql) (bảng `roles`, `users`, `audit_logs`).
+> **Tài liệu tham chiếu:** `docs/Plan.pdf` (mục II.3), `docs/API_CONTRACT.md` (mục 1.2, 1.3), `database/01_schema.sql` (bảng `roles`, `users`, `audit_logs`).
 
 ---
 

@@ -1,6 +1,7 @@
 """Pydantic v2 schemas conforming to OpenAPI specification."""
 
 from app.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
     RoleResponse,
@@ -15,6 +16,7 @@ __all__ = [
     "UserResponse",
     "LoginRequest",
     "LoginResponse",
+    "ChangePasswordRequest",
     "Error",
     "ErrorDetail",
     "PageMeta",

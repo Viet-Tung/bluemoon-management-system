@@ -1,7 +1,7 @@
 # ĐẶC TẢ KỸ THUẬT BACKEND SPRINT 1 (BACKEND SPECIFICATION - SPRINT 1)
 > **Dự án:** Quản lý & Thu phí Chung Cư BlueMoon  
 > **Phạm vi:** 12 User Stories — 40 Story Points (Tuần 3 – Tuần 5)  
-> **Căn cứ gốc (SSOT):** [docs/Plan.pdf](file:///z:/Desktop/bluemoon-management-system/docs/Plan.pdf), [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql), [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md)  
+> **Căn cứ gốc (SSOT):** `docs/Plan.pdf`, `database/01_schema.sql`, `docs/API_CONTRACT.md`  
 > **Mục đích:** Tệp đặc tả kỹ thuật cô đọng, truy cập siêu nhanh cho Backend Developers (TV1: Lê Trường Giang, TV2: Nguyễn Việt Tùng) khi phát triển Sprint 1 mà không phải tra cứu các file tài liệu lớn (>100KB).
 
 ---
@@ -19,7 +19,7 @@
 
 ## 2. CHUẨN XỬ LÝ LỖI DÙNG CHUNG (ERROR HANDLING SPEC)
 
-Mọi HTTP Error response từ hệ thống bắt buộc tuân theo Schema chuẩn [Error](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md#12-chuẩn-xử-lý-lỗi-error-handling):
+Mọi HTTP Error response từ hệ thống bắt buộc tuân theo Schema chuẩn `Error` (tham chiếu `docs/API_CONTRACT.md` mục 1.2):
 ```json
 {
   "code": "ERROR_CODE_STRING",
@@ -60,7 +60,7 @@ Mọi HTTP Error response từ hệ thống bắt buộc tuân theo Schema chu�
 
 ## 3. CẤU TRÚC DỮ LIỆU CỤM TỐI THIỂU (9 BẢNG SPRINT 1)
 
-Khớp 100% định nghĩa tại [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql):
+Khớp 100% định nghĩa tại `database/01_schema.sql`:
 
 ### 3.1. Cụm Identity & System (4 bảng)
 1. **`roles`**:
@@ -158,7 +158,7 @@ Khớp 100% định nghĩa tại [database/01_schema.sql](file:///z:/Desktop/blu
 
 ## 4. MA TRẬN 32 ENDPOINTS SPRINT 1 THEO API CONTRACT
 
-Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md):
+Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 
 ### 4.1. Phân hệ Auth (4 endpoints)
 * `POST /auth/login` | Roles: **public** | Status: `200`, `400`, `401`, `423` (`ACCOUNT_LOCKED`) | US-28
@@ -214,7 +214,7 @@ Trích xuất trực tiếp từ [docs/API_CONTRACT.md](file:///z:/Desktop/bluem
 * [ ] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
 * [x] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
 * [x] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.
-* [ ] `AC-29.1`: Đổi mật khẩu mới độ dài $\ge 8$ ký tự, bắt buộc đổi trong lần đầu đăng nhập.
+* [x] `AC-29.1`: Đổi mật khẩu mới độ dài $\ge 8$ ký tự, bắt buộc đổi trong lần đầu đăng nhập.
 * [ ] `AC-30.1`: Tạo mới, khóa, mở khóa tài khoản nhân sự có hiệu lực tức thì.
 * [ ] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
 * [ ] `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay.
