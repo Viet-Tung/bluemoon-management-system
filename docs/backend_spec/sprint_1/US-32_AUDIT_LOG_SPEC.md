@@ -137,7 +137,7 @@ docs/backend_spec/sprint_1/
 
 ## 5. KẾT QUẢ KIỂM THỬ THUẦN BLACK-BOX CỦA SUBAGENT QA (82 TEST CASES)
 
-Bộ kiểm thử độc lập tại `backend/tests/test_us32_audit_log.py` do TV2 (Nguyễn Việt Tùng) thiết kế đạt **82/82 PASSED (100%)**, bao phủ 6 nhóm kịch bản:
+Bộ kiểm thử độc lập tại `backend/tests/test_us32_audit_log.py` đạt **82/82 PASSED (100%)**, bao phủ 6 nhóm kịch bản:
 
 1. **Group 1: Authentication & RBAC Guard (14 test cases):**
    - Chặn các trường hợp thiếu token, token rỗng, malformed token, sai scheme Basic, token hết hạn, chữ ký giả mạo (`401 UNAUTHENTICATED`).

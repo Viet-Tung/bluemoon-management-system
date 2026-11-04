@@ -2,13 +2,13 @@
 > **Dự án:** Quản lý & Thu phí Chung Cư BlueMoon  
 > **Phạm vi:** 12 User Stories — 40 Story Points (Tuần 3 – Tuần 5)  
 > **Căn cứ gốc (SSOT):** `docs/Plan.pdf`, `database/01_schema.sql`, `docs/API_CONTRACT.md`  
-> **Mục đích:** Tệp đặc tả kỹ thuật cô đọng, truy cập siêu nhanh cho Backend Developers (TV1: Lê Trường Giang, TV2: Nguyễn Việt Tùng) khi phát triển Sprint 1 mà không phải tra cứu các file tài liệu lớn (>100KB).
+> **Mục đích:** Tệp đặc tả kỹ thuật cô đọng, truy cập siêu nhanh cho Backend Developers khi phát triển Sprint 1 mà không phải tra cứu các file tài liệu lớn (>100KB).
 
 ---
 
 ## 1. TIÊU CHUẨN KỸ THUẬT & CẤU HÌNH (TECH STACK BASELINE)
 
-* **Runtime:** Python 3.10+ (Môi trường phát triển TV1: Python 3.14.2 tại `backend/venv`).
+* **Runtime:** Python 3.10+ (Môi trường phát triển: Python 3.14.2 tại `backend/venv`).
 * **Web Framework:** FastAPI 0.162+ (hỗ trợ ASGI async, tự động sinh OpenAPI schema tại `/docs`).
 * **ORM & Database Driver:** SQLAlchemy 2.0 (Declarative Base) + `psycopg` (version 3.3+ binary).
 * **Bảo mật:** `bcrypt 5.0+` (rounds $\ge 12$), `PyJWT 2.15+` (thuật toán HS256, access token hết hạn 8 giờ).

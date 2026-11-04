@@ -129,7 +129,7 @@ backend/app/
 
 ---
 
-## 5. KẾT QUẢ KIỂM THỬ BLACK-BOX ĐỘC LẬP (TV2 - NGUYỄN VIỆT TÙNG)
+## 5. KẾT QUẢ KIỂM THỬ BLACK-BOX ĐỘC LẬP
 
 * **Tệp test:** `backend/tests/test_us01_apartments_households.py`
 * **Số lượng test cases:** **122 test cases** (100% Pass rate)
@@ -143,3 +143,4 @@ backend/app/
   - 10 tests cho `GET /api/v1/households/{id}` (Chi tiết hộ, thông tin chủ hộ, thông tin căn hộ liên kết, 404, RBAC).
   - 2 tests miền nghiệp vụ bất biến: Tách biệt thực thể (`AC-01.2`) và Không xóa vật lý (`No hard delete`).
 * **Tổng test suite toàn dự án:** **850 passed** (728 tests cũ + 122 tests US-01).
+

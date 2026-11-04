@@ -1,6 +1,6 @@
 # THƯ MỤC ĐẶC TẢ KỸ THUẬT BACKEND SPRINT 1
 
-Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng được trích xuất từ các tệp master SSOT (`Plan.pdf`, `01_schema.sql`, `API_CONTRACT.md`) nhằm phục vụ tra cứu nhanh và chuyển giao ngữ cảnh giữa các phiên làm việc (AI Conversations) cho 2 kỹ sư Backend: `TV1: Lê Trường Giang` và `TV2: Nguyễn Việt Tùng`.
+Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng được trích xuất từ các tệp master SSOT (`Plan.pdf`, `01_schema.sql`, `API_CONTRACT.md`) nhằm phục vụ tra cứu nhanh và chuyển giao ngữ cảnh giữa các phiên làm việc (AI Conversations) cho các kỹ sư Backend.
 
 ---
 
