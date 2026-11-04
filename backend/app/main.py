@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.rbac_middleware import AppAPIException
-from app.routers import auth_router, roles_router, users_router
+from app.routers import audit_logs_router, auth_router, roles_router, users_router
 from app.schemas.common import Error, ErrorDetail
 
 app = FastAPI(
@@ -112,6 +112,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
 app.include_router(roles_router, prefix=f"{settings.API_V1_STR}/roles")
 app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users")
+app.include_router(audit_logs_router, prefix=f"{settings.API_V1_STR}/audit-logs")
 
 
 # =====================================================================

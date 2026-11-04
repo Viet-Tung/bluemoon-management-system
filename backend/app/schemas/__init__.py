@@ -1,5 +1,6 @@
 """Pydantic v2 schemas conforming to OpenAPI specification."""
 
+from app.schemas.audit_log import AuditLogPage, AuditLogResponse
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -34,4 +35,6 @@ __all__ = [
     "TempPassword",
     "UserPage",
     "UserRoleUpdate",
+    "AuditLogResponse",
+    "AuditLogPage",
 ]
