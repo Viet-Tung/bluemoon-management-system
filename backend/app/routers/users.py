@@ -15,6 +15,7 @@ from app.schemas.user import (
     TempPassword,
     UserCreate,
     UserPage,
+    UserRoleUpdate,
     UserUpdate,
     UserWithTempPassword,
 )
@@ -229,6 +230,92 @@ def update_user(
     return UserResponse.model_validate(user)
 
 
+@router.put(
+    "/{userId}/role",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Gán hoặc thu hồi vai trò",
+    description="Gán hoặc thu hồi vai trò người dùng (US-31). Phân quyền: ADMIN.",
+)
+def set_user_role(
+    request: Request,
+    req: UserRoleUpdate,
+    userId: int = Path(..., ge=1, description="ID người dùng"),
+    current_user: User = Depends(require_roles("ADMIN")),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Gán hoặc thu hồi vai trò người dùng (US-31)."""
+    # 1. Ràng buộc bất biến: Quản trị viên không được tự đổi vai trò của chính mình
+    if current_user.id == userId:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="CANNOT_CHANGE_OWN_ROLE",
+            message="Quản trị viên không được phép tự thay đổi vai trò của chính mình.",
+        )
+
+    # 2. Kiểm tra tồn tại người dùng
+    user = db.scalar(select(User).where(User.id == userId))
+    if not user:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy người dùng có ID {userId}.",
+        )
+
+    # 3. Kiểm tra vai trò mục tiêu tồn tại trong hệ thống
+    target_role = db.scalar(select(Role).where(Role.id == req.role_id))
+    if not target_role:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message=f"Vai trò với ID {req.role_id} không tồn tại trong hệ thống.",
+        )
+
+    # 4. Ràng buộc phân tách Nhân sự <-> Cư dân (API Contract: Không được gán vai trò RESIDENT cho tài khoản nhân sự và ngược lại)
+    is_current_resident = (user.role.code == "RESIDENT" or user.household_id is not None)
+    is_target_resident = (target_role.code == "RESIDENT")
+
+    if not is_current_resident and is_target_resident:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Không được phép gán vai trò Cư dân (RESIDENT) cho tài khoản nhân sự.",
+        )
+
+    if is_current_resident and not is_target_resident:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Không được phép gán vai trò nhân sự cho tài khoản Cư dân.",
+        )
+
+    old_role_id = user.role_id
+    old_role_code = user.role.code if user.role else ""
+
+    # Cập nhật vai trò mới (hiệu lực ngay lập tức ở request tiếp theo)
+    user.role_id = target_role.id
+
+    # 5. Ghi nhận Audit Log
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="CHANGE_ROLE",
+        entity_type="USER",
+        entity_id=str(user.id),
+        old_value={"role_id": old_role_id, "role_code": old_role_code},
+        new_value={"role_id": target_role.id, "role_code": target_role.code},
+        reason=f"Admin '{current_user.username}' đã đổi vai trò của người dùng '{user.username}' từ '{old_role_code}' sang '{target_role.code}'.",
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(user)
+
+    return UserResponse.model_validate(user)
+
+
 @router.post(
     "/{userId}/lock",
     response_model=UserResponse,
@@ -385,4 +472,3 @@ def reset_user_password(
         temporary_password=temp_password,
         temp_password=temp_password,
     )
-

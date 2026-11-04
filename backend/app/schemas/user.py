@@ -92,3 +92,10 @@ class UserPage(PageMeta):
     """Danh sách người dùng phân trang theo docs/openapi.yaml."""
     items: List[UserResponse] = Field(default_factory=list, description="Danh sách người dùng")
 
+
+
+class UserRoleUpdate(BaseModel):
+    """Schema gán hoặc thu hồi vai trò theo docs/openapi.yaml (US-31)."""
+    model_config = ConfigDict(extra="ignore")
+
+    role_id: int = Field(..., description="ID vai trò mới (1: ADMIN, 2: ACCOUNTANT, 3: TREASURER, 4: RESIDENT)")

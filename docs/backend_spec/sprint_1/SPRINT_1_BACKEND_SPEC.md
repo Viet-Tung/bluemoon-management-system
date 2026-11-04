@@ -216,8 +216,8 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 * [x] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.
 * [x] `AC-29.1`: Đổi mật khẩu mới độ dài $\ge 8$ ký tự, bắt buộc đổi trong lần đầu đăng nhập.
 * [x] `AC-30.1`: Tạo mới, khóa, mở khóa tài khoản nhân sự có hiệu lực tức thì.
-* [ ] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
-* [ ] `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay.
+* [x] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
+* [x] `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay.
 * [ ] `AC-01.1`: Căn hộ có mã không trùng lặp, diện tích $> 0\text{ m}^2$.
 * [ ] `AC-01.2`: Tách biệt độc lập 2 thực thể Căn hộ và Hộ gia đình (`T-01`, `T-02`).
 * [ ] `AC-02.1`: Kiểm tra tất toán công nợ trước khi đổi chủ hộ; ghi Audit Log `CHANGE_HEAD`.

@@ -90,13 +90,36 @@ def get_current_user(
 def require_roles(*allowed_roles: str) -> Callable:
     """
     Role-Based Access Control Guard (US-31, AC-31.1).
-    Validates that current_user.role.code matches one of allowed_roles.
+    Validates that current_user.role.code matches one of allowed_roles
+    and verifies that user does not have pending first-time password change.
     """
     def role_checker(
         request: Request,
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> User:
+        # Kiểm tra bắt buộc đổi mật khẩu lần đầu (AC-29.1, API Contract Chapter 1.2)
+        if current_user.must_change_password:
+            client_ip = request.client.host if request.client else None
+            user_agent = request.headers.get("user-agent")
+            audit = AuditLog(
+                user_id=current_user.id,
+                action="ACCESS_DENIED",
+                entity_type="ENDPOINT",
+                entity_id=request.url.path,
+                reason="Tài khoản bắt buộc phải đổi mật khẩu lần đầu (must_change_password=True).",
+                ip_address=client_ip,
+                user_agent=user_agent
+            )
+            db.add(audit)
+            db.commit()
+
+            raise AppAPIException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                code="PASSWORD_CHANGE_REQUIRED",
+                message="Tài khoản bắt buộc phải đổi mật khẩu ở lần đăng nhập đầu tiên trước khi thực hiện thao tác khác."
+            )
+
         user_role_code = current_user.role.code if current_user.role else ""
         if allowed_roles and user_role_code not in allowed_roles:
             # Ghi log ACCESS_DENIED vào audit_logs
@@ -158,4 +181,3 @@ def check_household_access(
                 code="NOT_FOUND",
                 message="Không tìm thấy thông tin hộ gia đình."
             )
-
