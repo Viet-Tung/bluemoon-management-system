@@ -3,7 +3,7 @@
 > **Story Points:** `2 SP` | **Độ ưu tiên:** `Must (M)`  
 > **Người thực hiện:** `TV1: Lê Trường Giang` | **Người kiểm thử ngang hàng (Peer Review):** `TV2: Nguyễn Việt Tùng`  
 > **Nhánh Git:** `feat/US-29-backend-auth-change-password`  
-> **Tài liệu tham chiếu:** [docs/Plan.pdf](file:///z:/Desktop/bluemoon-management-system/docs/Plan.pdf) (mục II.3), [docs/API_CONTRACT.md](file:///z:/Desktop/bluemoon-management-system/docs/API_CONTRACT.md) (mục 2.1), [docs/openapi.yaml](file:///z:/Desktop/bluemoon-management-system/docs/openapi.yaml) (`/auth/change-password`), [database/01_schema.sql](file:///z:/Desktop/bluemoon-management-system/database/01_schema.sql) (bảng `users`).
+> **Tài liệu tham chiếu:** `docs/Plan.pdf` (mục II.3), `docs/API_CONTRACT.md` (mục 2.1), `docs/openapi.yaml` (`/auth/change-password`), `database/01_schema.sql` (bảng `users`).
 
 ---
 
@@ -92,7 +92,7 @@ backend/tests/
 
 ## 5. MA TRẬN KIỂM THỬ TỰ ĐỘNG (TEST SUITE MATRIX)
 
-Tệp kiểm thử [`backend/tests/test_us29_change_password.py`](file:///z:/Desktop/bluemoon-management-system/backend/tests/test_us29_change_password.py) bao phủ toàn diện:
+Tệp kiểm thử `backend/tests/test_us29_change_password.py` bao phủ toàn diện:
 1. **Happy Paths:** Đổi mật khẩu thành công cho mọi vai trò (`ADMIN`, `ACCOUNTANT`, `TREASURER`, `RESIDENT`).
 2. **Cờ `must_change_password`:** Xác nhận tài khoản bị yêu cầu đổi mật khẩu có thể gọi API thành công và cờ được chuyển thành `False`.
 3. **Mật khẩu cũ sai:** Kiểm tra trả về đúng HTTP 400 `WRONG_OLD_PASSWORD`, không kích hoạt lockout tài khoản.
