@@ -37,3 +37,6 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# AI Task Prompts
+AI_TASK*
