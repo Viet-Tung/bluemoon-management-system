@@ -1287,3 +1287,132 @@ class TestUS02CrossCuttingAndEdgeCases:
         assert len(rows) >= 1
         assert rows[-1][0] == "ACCESS_DENIED"
         assert rows[-1][1] == 2  # accountant user_id
+
+
+# ==============================================================================
+# GROUP 5: DEBT NOT SETTLED ENFORCEMENT TESTS (AC-02.1 & DEBT CHECK VERIFICATION)
+# ==============================================================================
+
+class TestDebtNotSettledEnforcement:
+    @pytest.fixture(autouse=True)
+    def setup_invoices_table(self, db_session):
+        db_session.execute(text("""
+            CREATE TABLE IF NOT EXISTS invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                household_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                total_due REAL DEFAULT 0,
+                paid_amount REAL DEFAULT 0
+            )
+        """))
+        db_session.commit()
+        yield
+        try:
+            db_session.execute(text("DROP TABLE IF EXISTS invoices"))
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+
+    def test_deactivate_fails_when_unpaid_invoice_exists(self, client, auth_headers_admin, household_factory, db_session):
+        h = household_factory()
+        hid = h["household_id"]
+
+        db_session.execute(text("""
+            INSERT INTO invoices (household_id, status, total_due, paid_amount)
+            VALUES (:hid, 'UNPAID', 1500000.0, 0.0)
+        """), {"hid": hid})
+        db_session.commit()
+
+        res = client.post(
+            f"/api/v1/households/{hid}/deactivate",
+            json={"reason": "Dừng hợp đồng dịch vụ"},
+            headers=auth_headers_admin
+        )
+        assert res.status_code == 409
+        body = res.json()
+        assert body["code"] == "DEBT_NOT_SETTLED"
+
+        db_status = db_session.execute(text("SELECT status FROM households WHERE id = :hid"), {"hid": hid}).scalar()
+        assert db_status == "ACTIVE"
+
+    def test_change_head_fails_when_unpaid_invoice_exists(self, client, auth_headers_admin, household_factory, db_session):
+        h = household_factory()
+        hid = h["household_id"]
+        old_head_id = h["head_resident_id"]
+        new_head_id = h["member_resident_id"]
+
+        db_session.execute(text("""
+            INSERT INTO invoices (household_id, status, total_due, paid_amount)
+            VALUES (:hid, 'OVERDUE', 2500000.0, 500000.0)
+        """), {"hid": hid})
+        db_session.commit()
+
+        res = client.put(
+            f"/api/v1/households/{hid}/head",
+            json={"new_head_resident_id": new_head_id, "effective_date": "2026-11-04", "reason": "Đổi chủ hộ nợ"},
+            headers=auth_headers_admin
+        )
+        assert res.status_code == 409
+        body = res.json()
+        assert body["code"] == "DEBT_NOT_SETTLED"
+
+        head_row = db_session.execute(
+            text("SELECT id FROM residents WHERE household_id = :hid AND is_head = 1 AND is_deleted = 0"),
+            {"hid": hid}
+        ).fetchone()
+        assert head_row is not None
+        assert head_row[0] == old_head_id
+
+    def test_partially_paid_invoice_blocks_deactivation_and_change_head(self, client, auth_headers_admin, household_factory, db_session):
+        h = household_factory()
+        hid = h["household_id"]
+        member_id = h["member_resident_id"]
+
+        db_session.execute(text("""
+            INSERT INTO invoices (household_id, status, total_due, paid_amount)
+            VALUES (:hid, 'PARTIALLY_PAID', 1000000.0, 500000.0)
+        """), {"hid": hid})
+        db_session.commit()
+
+        res1 = client.post(
+            f"/api/v1/households/{hid}/deactivate",
+            json={"reason": "Thử ngừng quản lý khi nợ 1 phần"},
+            headers=auth_headers_admin
+        )
+        assert res1.status_code == 409
+        assert res1.json()["code"] == "DEBT_NOT_SETTLED"
+
+        res2 = client.put(
+            f"/api/v1/households/{hid}/head",
+            json={"new_head_resident_id": member_id, "effective_date": "2026-11-04"},
+            headers=auth_headers_admin
+        )
+        assert res2.status_code == 409
+        assert res2.json()["code"] == "DEBT_NOT_SETTLED"
+
+    def test_operations_succeed_once_debt_is_fully_paid(self, client, auth_headers_admin, household_factory, db_session):
+        h = household_factory()
+        hid = h["household_id"]
+        member_id = h["member_resident_id"]
+
+        db_session.execute(text("""
+            INSERT INTO invoices (household_id, status, total_due, paid_amount)
+            VALUES (:hid, 'PAID', 1000000.0, 1000000.0)
+        """), {"hid": hid})
+        db_session.commit()
+
+        res_head = client.put(
+            f"/api/v1/households/{hid}/head",
+            json={"new_head_resident_id": member_id, "effective_date": "2026-11-04", "reason": "Đã trả hết nợ"},
+            headers=auth_headers_admin
+        )
+        assert res_head.status_code == 200
+        assert res_head.json()["head_resident_id"] == member_id
+
+        res_deact = client.post(
+            f"/api/v1/households/{hid}/deactivate",
+            json={"reason": "Đã tất toán toàn bộ công nợ và chuyển đi"},
+            headers=auth_headers_admin
+        )
+        assert res_deact.status_code == 200
+        assert res_deact.json()["status"] == "INACTIVE"

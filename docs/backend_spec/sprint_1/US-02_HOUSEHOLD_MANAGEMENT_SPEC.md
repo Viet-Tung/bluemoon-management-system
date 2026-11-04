@@ -127,11 +127,12 @@ backend/tests/
 
 * **Tệp test:** `backend/tests/test_us02_household_management.py`
 * **Người thực hiện:** QA Subagent (Black-Box Tester độc lập)
-* **Số lượng test cases:** **98 test cases** (vượt 196% chỉ tiêu tối thiểu $\ge 50$ tests), **100% Pass rate**.
+* **Số lượng test cases:** **102 test cases** (vượt 204% chỉ tiêu tối thiểu $\ge 50$ tests), **100% Pass rate**.
 * **Phân bổ chi tiết:**
   - **29 test cases** cho `PATCH /api/v1/households/{id}`: cập nhật từng trường, cập nhật đồng thời, null payload, unicode tiếng Việt, ký tự đặc biệt, chuỗi dài 1,000 ký tự, bảo vệ các trường bất biến (`id`, `household_code`, `status`), validation email sai format, boundaries ID âm/0/999999, RBAC Guard (401/403/must_change_password).
   - **25 test cases** cho `POST /api/v1/households/{id}/deactivate`: ngừng quản lý hộ, kiểm tra trạng thái `INACTIVE`, đóng lịch sử lưu trú `apartment_occupancies`, vô hiệu hóa tài khoản cư dân, **kiểm tra bất biến No hard delete trực tiếp trên CSDL**, kiểm tra ghi nhận `AuditLog`, validation `reason` thiếu/rỗng/whitespace/null/sai type, boundaries 404, RBAC Guard (401/403).
   - **39 test cases** cho `PUT /api/v1/households/{id}/head`: đổi chủ hộ thành công, hạ chủ hộ cũ, nâng chủ hộ mới, **đảm bảo duy nhất 1 chủ hộ hoạt động (`ux_residents_one_head`)**, kiểm tra ghi nhận `AuditLog` bắt buộc (`CHANGE_HEAD`), chặn đổi chủ hộ khi hộ `INACTIVE`, chặn nhân khẩu `DA_CHUYEN_DI` và `DA_QUA_DOI`, chặn nhân khẩu hộ khác, validation ngày ISO, boundaries 404, RBAC Guard (401/403).
   - **5 test cases** kiểm tra phong bì lỗi chuẩn (`Error` envelope: `code`, `message`, `details`) và tự động ghi `AuditLog` hành động `ACCESS_DENIED` khi vi phạm RBAC Guard.
-* **Tổng test suite toàn dự án:** **948 passed** (850 tests cũ + 98 tests US-02), không có bất kỳ regression hay xung đột nào.
+  - **4 test cases** kiểm thử chuyên sâu ràng buộc nợ (`TestDebtNotSettledEnforcement`): giả lập bảng `invoices` trong SQLite để kích hoạt và xác thực nhánh lỗi `409 DEBT_NOT_SETTLED` khi có nợ chưa thanh toán (`UNPAID`), nợ quá hạn (`OVERDUE`), nợ thanh toán một phần (`PARTIALLY_PAID`), và xác thực nghiệp vụ thành công ngay sau khi tất toán (`PAID`).
+* **Tổng test suite toàn dự án:** **952 passed** (850 tests cũ + 102 tests US-02), không có bất kỳ regression hay xung đột nào.
 
