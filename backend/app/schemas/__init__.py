@@ -13,6 +13,7 @@ from app.schemas.user import (
     TempPassword,
     UserCreate,
     UserPage,
+    UserRoleUpdate,
     UserUpdate,
     UserWithTempPassword,
 )
@@ -32,4 +33,5 @@ __all__ = [
     "UserWithTempPassword",
     "TempPassword",
     "UserPage",
+    "UserRoleUpdate",
 ]
