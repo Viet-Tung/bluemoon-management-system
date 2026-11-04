@@ -17,6 +17,7 @@
 ### 1.2. Tiêu chí nghiệm thu cốt lõi (Acceptance Criteria)
 * **`AC-31.1` (Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay):**
   - **Phân quyền bắt buộc:** Cả 2 endpoint (`GET /api/v1/roles` và `PUT /api/v1/users/{userId}/role`) yêu cầu vai trò `ADMIN` thông qua RBAC middleware (`require_roles("ADMIN")`). Các vai trò khác (`ACCOUNTANT`, `TREASURER`, `RESIDENT`) bị chặn với HTTP `403 FORBIDDEN` và tự động ghi nhận nhật ký kiểm toán `ACCESS_DENIED`.
+  - **Bắt buộc đổi mật khẩu lần đầu:** Nếu tài khoản Admin có cờ `must_change_password = True` gọi vào các endpoint này, hệ thống lập tức chặn với HTTP `403 FORBIDDEN` kèm mã lỗi `PASSWORD_CHANGE_REQUIRED` và ghi log `ACCESS_DENIED`.
   - **Danh sách vai trò (`GET /api/v1/roles`):**
     * Trả về danh sách đầy đủ 4 vai trò chuẩn trong hệ thống: `ADMIN`, `ACCOUNTANT`, `TREASURER`, `RESIDENT`.
     * Dữ liệu sắp xếp tăng dần theo `Role.id`.
@@ -39,6 +40,8 @@
 
 ```text
 backend/app/
+├── core/
+│   └── rbac_middleware.py       # RBAC Guard kiểm tra role & PASSWORD_CHANGE_REQUIRED
 ├── routers/
 │   ├── __init__.py              # Export roles_router, users_router
 │   ├── roles.py                 # Endpoint GET /api/v1/roles (listRoles)
@@ -49,7 +52,7 @@ backend/app/
 │   └── user.py                  # UserRoleUpdate (role_id: int)
 └── main.py                      # Đăng ký roles_router prefix /api/v1/roles
 backend/tests/
-└── test_us31_role_management.py # Bộ kiểm thử tự động black-box (65 test cases)
+└── test_us31_role_management.py # Bộ kiểm thử tự động black-box (77 test cases)
 docs/backend_spec/sprint_1/
 ├── README.md                    # Cập nhật danh mục tài liệu Sprint 1
 ├── SPRINT_1_BACKEND_SPEC.md     # Đánh dấu checklist DoD AC-31.1
@@ -96,6 +99,7 @@ docs/backend_spec/sprint_1/
 * **Mã lỗi:**
   - `401 UNAUTHENTICATED`: Thiếu token hoặc token không hợp lệ.
   - `403 FORBIDDEN`: Không phải vai trò ADMIN.
+  - `403 PASSWORD_CHANGE_REQUIRED`: Admin chưa đổi mật khẩu lần đầu.
 
 ---
 
@@ -110,15 +114,16 @@ docs/backend_spec/sprint_1/
   }
   ```
 * **Xử lý nghiệp vụ:**
-  1. Kiểm tra `current_user.id == userId`: Nếu trùng $\rightarrow$ Trả về `409 CANNOT_CHANGE_OWN_ROLE`.
-  2. Truy vấn người dùng mục tiêu theo `userId`: Nếu không tìm thấy $\rightarrow$ Trả về `404 NOT_FOUND`.
-  3. Truy vấn vai trò mục tiêu theo `req.role_id`: Nếu không tìm thấy $\rightarrow$ Trả về `400 VALIDATION_ERROR`.
-  4. Kiểm tra ràng buộc phân tách:
+  1. Kiểm tra `current_user.must_change_password`: Nếu `True` $\rightarrow$ Trả về `403 PASSWORD_CHANGE_REQUIRED`.
+  2. Kiểm tra `current_user.id == userId`: Nếu trùng $\rightarrow$ Trả về `409 CANNOT_CHANGE_OWN_ROLE`.
+  3. Truy vấn người dùng mục tiêu theo `userId`: Nếu không tìm thấy $\rightarrow$ Trả về `404 NOT_FOUND`.
+  4. Truy vấn vai trò mục tiêu theo `req.role_id`: Nếu không tìm thấy $\rightarrow$ Trả về `400 VALIDATION_ERROR`.
+  5. Kiểm tra ràng buộc phân tách:
      - Nếu tài khoản là nhân sự và `target_role.code == "RESIDENT"` $\rightarrow$ Trả về `400 VALIDATION_ERROR`.
      - Nếu tài khoản là cư dân và `target_role.code != "RESIDENT"` $\rightarrow$ Trả về `400 VALIDATION_ERROR`.
-  5. Cập nhật `user.role_id = target_role.id`.
-  6. Ghi nhật ký `AuditLog` với `action="CHANGE_ROLE"`, lưu snapshot `old_value` và `new_value`.
-  7. Commit giao dịch và trả về `UserResponse`.
+  6. Cập nhật `user.role_id = target_role.id`.
+  7. Ghi nhật ký `AuditLog` với `action="CHANGE_ROLE"`, lưu snapshot `old_value` và `new_value`.
+  8. Commit giao dịch và trả về `UserResponse`.
 * **Phản hồi thành công:** `200 OK` (`UserResponse`).
 
 ---
@@ -130,6 +135,7 @@ docs/backend_spec/sprint_1/
 | **400** | `VALIDATION_ERROR` | `role_id` không tồn tại; gán RESIDENT cho nhân sự; gán vai trò nhân sự cho cư dân; thiếu `role_id` hoặc sai định dạng. |
 | **401** | `UNAUTHENTICATED` | Thiếu token, token hết hạn hoặc chữ ký JWT không hợp lệ. |
 | **403** | `FORBIDDEN` | Tài khoản gọi endpoint không có vai trò `ADMIN` (tự động ghi log `ACCESS_DENIED`). |
+| **403** | `PASSWORD_CHANGE_REQUIRED` | Tài khoản có `must_change_password=True` gọi API trước khi đổi mật khẩu (tự động ghi log `ACCESS_DENIED`). |
 | **404** | `NOT_FOUND` | Không tìm thấy người dùng mục tiêu theo `userId`. |
 | **409** | `CANNOT_CHANGE_OWN_ROLE` | Quản trị viên tự đổi vai trò của chính mình. |
 | **405** | `METHOD_NOT_ALLOWED` | Gọi sai phương thức HTTP (VD: `POST /roles`, `DELETE /users/{id}/role`). |
@@ -137,9 +143,9 @@ docs/backend_spec/sprint_1/
 
 ---
 
-## 5. CHIẾN LƯỢC KIỂM THỬ THUẦN BLACK-BOX (65 TEST CASES)
+## 5. CHIẾN LƯỢC KIỂM THỬ THUẦN BLACK-BOX (77 TEST CASES)
 
-Toàn bộ 65 ca kiểm thử tự động tại `backend/tests/test_us31_role_management.py` được thiết kế 100% dựa trên API Contract và OpenAPI specification:
+Toàn bộ 77 ca kiểm thử tự động tại `backend/tests/test_us31_role_management.py` được thiết kế 100% dựa trên API Contract và OpenAPI specification bởi QA Subagent độc lập:
 
 1. **Happy Paths `GET /roles` (9 test cases):**
    - HTTP 200 OK, trả về danh sách mảng JSON.
@@ -152,34 +158,41 @@ Toàn bộ 65 ca kiểm thử tự động tại `backend/tests/test_us31_role_m
    - Kiểm tra cấu trúc phản hồi `UserResponse`.
    - Kiểm tra cập nhật CSDL tức thì.
    - Kiểm tra bản ghi `AuditLog` với `action="CHANGE_ROLE"`, lưu đúng `old_value`, `new_value`, User-Agent.
-3. **Hiệu lực tức thì theo tiêu chí `AC-31.1` (3 test cases):**
+3. **Hiệu lực tức thì theo tiêu chí `AC-31.1` (4 test cases):**
    - Kế toán sau khi được thăng lên `ADMIN` lập tức có quyền truy cập endpoint admin-only ở request kế tiếp.
    - Admin phụ sau khi bị giáng xuống `ACCOUNTANT` lập tức bị chặn `403 FORBIDDEN` ở request kế tiếp.
    - Người dùng được thăng Admin lập tức gọi được `GET /roles`.
+   - Admin phụ bị giáng cấp lập tức không thể gọi `PUT /users/{userId}/role` để sửa vai trò người khác.
 4. **Edge Cases & Ràng buộc bất biến (16 test cases):**
    - Cấm Admin tự đổi vai trò của chính mình sang bất kỳ role nào (`409 CANNOT_CHANGE_OWN_ROLE`), không ghi audit log khi bị từ chối.
    - User ID không tồn tại hoặc cực lớn (`404 NOT_FOUND`).
    - Role ID không tồn tại, âm hoặc bằng 0 (`400 VALIDATION_ERROR`).
    - Cấm gán vai trò `RESIDENT` cho nhân sự (`400 VALIDATION_ERROR`).
    - Cấm gán vai trò nhân sự cho cư dân (`400 VALIDATION_ERROR`).
-5. **Validation & Dữ liệu đầu vào (7 test cases):**
+5. **Validation & Dữ liệu đầu vào (10 test cases):**
    - Thiếu `role_id`, `role_id` là chuỗi, null, JSON sai cú pháp (`400 VALIDATION_ERROR`).
    - Path param `userId` âm, bằng 0 hoặc chữ (`400 VALIDATION_ERROR`).
+   - Payload chứa trường dư thừa, mảng JSON thay vì object, body trống hoàn toàn (`400 VALIDATION_ERROR`).
 6. **Bảo mật & Phân quyền RBAC (14 test cases):**
    - Chưa xác thực, token giả mạo, token hết hạn (`401 UNAUTHENTICATED`).
    - Gọi bằng `ACCOUNTANT`, `TREASURER`, `RESIDENT` (`403 FORBIDDEN`).
    - Xác minh tự động ghi nhận `ACCESS_DENIED` vào `audit_logs`.
-7. **An toàn Injection & Phương thức HTTP (4 test cases):**
+7. **HTTP Methods Sanity & An toàn Injection (8 test cases):**
    - Chặn an toàn SQL injection trong path param `userId`.
-   - Kiểm tra `405 Method Not Allowed` cho các HTTP methods không hỗ trợ.
+   - Kiểm tra `405 Method Not Allowed` cho các HTTP methods không hỗ trợ (`POST /roles`, `PUT /roles`, `DELETE /roles`, `PATCH /roles`, v.v.).
+8. **Trạng thái tài khoản đặc biệt (4 test cases):**
+   - Đổi vai trò cho user `is_active=False` bảo toàn trạng thái vô hiệu hóa.
+   - Đổi vai trò cho user `must_change_password=True` bảo toàn cờ đổi mật khẩu.
+   - Chặn `GET /roles` khi `must_change_password=True` (`403 PASSWORD_CHANGE_REQUIRED`).
+   - Chặn `PUT /users/{userId}/role` khi `must_change_password=True` (`403 PASSWORD_CHANGE_REQUIRED`).
 
 ---
 
 ## 6. HƯỚNG DẪN BÀN GIAO & PEER REVIEW DOD
 
 * **Tự kiểm tra (Self-Check):**
-  - Chạy `pytest backend/tests/test_us31_role_management.py` $\rightarrow$ 65/65 tests PASSED (100%).
-  - Chạy toàn bộ test suite `pytest` $\rightarrow$ 634/634 tests PASSED (100%).
+  - Chạy `pytest backend/tests/test_us31_role_management.py` $\rightarrow$ 77/77 tests PASSED (100%).
+  - Chạy toàn bộ test suite `pytest` $\rightarrow$ 646/646 tests PASSED (100%).
   - Zero hard delete, giao dịch ACID toàn vẹn.
   - Tuân thủ tuyệt đối quy tắc không chèn đường dẫn tuyệt đối máy cá nhân vào tài liệu.
 * **Người thực hiện:** Lê Trường Giang (`TV1`)

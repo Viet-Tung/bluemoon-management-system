@@ -25,3 +25,4 @@ def list_roles(
     """Danh sách 4 vai trò chuẩn trong hệ thống (ADMIN, ACCOUNTANT, TREASURER, RESIDENT)."""
     roles = db.scalars(select(Role).order_by(Role.id.asc())).all()
     return [RoleResponse.model_validate(r) for r in roles]
+

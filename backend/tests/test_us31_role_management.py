@@ -755,3 +755,157 @@ def test_65_set_user_role_method_not_allowed_delete(client, auth_headers_admin, 
     user = test_staff_users["accountant"]
     res = client.delete(f"{USERS_URL}/{user.id}/role", headers=auth_headers_admin)
     assert res.status_code == 405
+
+
+# =====================================================================
+# 8. BỔ SUNG NÂNG CAO: PASSWORD CHANGE REQUIRED, HTTP METHODS & INTEGRITY
+# =====================================================================
+
+def test_66_list_roles_must_change_password_required_returns_403(client, db_session):
+    """Admin có flag must_change_password=True trong DB khi gọi GET /roles bị chặn 403 PASSWORD_CHANGE_REQUIRED."""
+    admin = db_session.scalar(select(User).where(User.id == 1))
+    admin.must_change_password = True
+    db_session.commit()
+
+    try:
+        token = create_access_token(
+            data={"sub": "1", "username": "admin_test", "role": "ADMIN", "must_change_password": True}
+        )
+        res = client.get(ROLES_URL, headers={"Authorization": f"Bearer {token}"})
+        assert res.status_code == 403
+        assert res.json()["code"] == "PASSWORD_CHANGE_REQUIRED"
+    finally:
+        admin.must_change_password = False
+        db_session.commit()
+
+
+def test_67_set_user_role_must_change_password_required_returns_403(client, db_session, test_staff_users):
+    """Admin có flag must_change_password=True trong DB khi gọi PUT /{userId}/role bị chặn 403 PASSWORD_CHANGE_REQUIRED."""
+    admin = db_session.scalar(select(User).where(User.id == 1))
+    admin.must_change_password = True
+    db_session.commit()
+
+    user = test_staff_users["accountant"]
+    try:
+        token = create_access_token(
+            data={"sub": "1", "username": "admin_test", "role": "ADMIN", "must_change_password": True}
+        )
+        res = client.put(
+            f"{USERS_URL}/{user.id}/role",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"role_id": 3},
+        )
+        assert res.status_code == 403
+        assert res.json()["code"] == "PASSWORD_CHANGE_REQUIRED"
+    finally:
+        admin.must_change_password = False
+        db_session.commit()
+
+
+def test_68_roles_method_not_allowed_patch(client, auth_headers_admin):
+    """PATCH /roles không được phép (405 Method Not Allowed)."""
+    res = client.patch(ROLES_URL, headers=auth_headers_admin, json={})
+    assert res.status_code == 405
+
+
+def test_69_roles_method_not_allowed_put(client, auth_headers_admin):
+    """PUT /roles không được phép (405 Method Not Allowed)."""
+    res = client.put(ROLES_URL, headers=auth_headers_admin, json={})
+    assert res.status_code == 405
+
+
+def test_70_set_user_role_method_not_allowed_post(client, auth_headers_admin, test_staff_users):
+    """POST /users/{userId}/role không được phép (405 Method Not Allowed)."""
+    user = test_staff_users["accountant"]
+    res = client.post(f"{USERS_URL}/{user.id}/role", headers=auth_headers_admin, json={"role_id": 3})
+    assert res.status_code == 405
+
+
+def test_71_set_user_role_method_not_allowed_get(client, auth_headers_admin, test_staff_users):
+    """GET /users/{userId}/role không được phép (405 Method Not Allowed)."""
+    user = test_staff_users["accountant"]
+    res = client.get(f"{USERS_URL}/{user.id}/role", headers=auth_headers_admin)
+    assert res.status_code == 405
+
+
+def test_72_set_user_role_with_extra_fields_in_payload_succeeds(client, auth_headers_admin, test_staff_users):
+    """Payload chứa trường dư thừa ngoài role_id vẫn được xử lý an toàn (200 OK) và cập nhật đúng vai trò."""
+    user = test_staff_users["accountant"]
+    res = client.put(
+        f"{USERS_URL}/{user.id}/role",
+        headers=auth_headers_admin,
+        json={"role_id": 3, "hacked": True, "extra_note": "malicious injection"},
+    )
+    assert res.status_code == 200
+    assert res.json()["role"]["id"] == 3
+
+
+def test_73_set_user_role_array_payload_returns_400(client, auth_headers_admin, test_staff_users):
+    """Body gửi mảng JSON thay vì JSON Object trả về HTTP 400 VALIDATION_ERROR."""
+    user = test_staff_users["accountant"]
+    res = client.put(
+        f"{USERS_URL}/{user.id}/role",
+        headers=auth_headers_admin,
+        json=[{"role_id": 3}],
+    )
+    assert res.status_code == 400
+    assert res.json()["code"] == "VALIDATION_ERROR"
+
+
+def test_74_set_user_role_empty_raw_body_returns_400(client, auth_headers_admin, test_staff_users):
+    """Body rỗng nhưng khai báo Content-Type json trả về HTTP 400 VALIDATION_ERROR."""
+    user = test_staff_users["accountant"]
+    res = client.put(
+        f"{USERS_URL}/{user.id}/role",
+        headers={**auth_headers_admin, "Content-Type": "application/json"},
+        content="",
+    )
+    assert res.status_code == 400
+    assert res.json()["code"] == "VALIDATION_ERROR"
+
+
+def test_75_set_user_role_for_inactive_user_preserves_inactive_status(client, auth_headers_admin, db_session, test_staff_users):
+    """Đổi vai trò của người dùng đang INACTIVE thì trạng thái is_active=False vẫn được bảo toàn."""
+    user = test_staff_users["accountant"]
+    user.is_active = False
+    db_session.commit()
+
+    res = client.put(f"{USERS_URL}/{user.id}/role", headers=auth_headers_admin, json={"role_id": 3})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["role"]["id"] == 3
+    assert data["is_active"] is False
+
+
+def test_76_set_user_role_preserves_must_change_password_flag(client, auth_headers_admin, db_session, test_staff_users):
+    """Đổi vai trò của người dùng có flag must_change_password=True thì cờ này vẫn được giữ nguyên."""
+    user = test_staff_users["accountant"]
+    user.must_change_password = True
+    db_session.commit()
+
+    res = client.put(f"{USERS_URL}/{user.id}/role", headers=auth_headers_admin, json={"role_id": 3})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["role"]["id"] == 3
+    assert data["must_change_password"] is True
+
+
+def test_77_ac31_1_demoted_admin_cannot_mutate_roles_on_next_request(client, auth_headers_admin, test_staff_users):
+    """AC-31.1: Admin phụ sau khi bị hạ xuống Kế toán lập tức không thể gọi PUT /users/{userId}/role của người khác."""
+    sub_admin = test_staff_users["secondary_admin"]
+    victim = test_staff_users["accountant"]
+    sub_admin_headers = make_auth_headers(sub_admin.id, sub_admin.username, "ADMIN")
+
+    # Trước khi bị hạ: sub_admin có thể đổi role
+    res_can = client.put(f"{USERS_URL}/{victim.id}/role", headers=sub_admin_headers, json={"role_id": 3})
+    assert res_can.status_code == 200
+
+    # Super admin hạ sub_admin xuống ACCOUNTANT (role_id=2)
+    res_demote = client.put(f"{USERS_URL}/{sub_admin.id}/role", headers=auth_headers_admin, json={"role_id": 2})
+    assert res_demote.status_code == 200
+
+    # Ngay request tiếp theo: sub_admin dùng token cũ gọi PUT /role lập tức bị chặn 403 FORBIDDEN
+    res_blocked = client.put(f"{USERS_URL}/{victim.id}/role", headers=sub_admin_headers, json={"role_id": 2})
+    assert res_blocked.status_code == 403
+    assert res_blocked.json()["code"] == "FORBIDDEN"
+
