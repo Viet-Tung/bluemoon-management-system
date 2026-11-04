@@ -59,3 +59,11 @@ class LoginResponse(BaseModel):
     token_type: str = Field(default="Bearer", description="Loại token")
     expires_in: int = Field(..., description="Số giây token còn hiệu lực")
     user: UserResponse = Field(..., description="Thông tin tài khoản đăng nhập")
+
+
+class ChangePasswordRequest(BaseModel):
+    """Dữ liệu yêu cầu đổi mật khẩu cá nhân theo docs/openapi.yaml (US-29)."""
+    model_config = ConfigDict(extra="ignore")
+
+    old_password: str = Field(..., min_length=1, description="Mật khẩu hiện tại")
+    new_password: str = Field(..., min_length=8, description="Mật khẩu mới (tối thiểu 8 ký tự)")
