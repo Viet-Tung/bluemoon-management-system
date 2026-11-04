@@ -211,7 +211,7 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 * [x] `AC-44.1`: Mật khẩu lưu dạng băm `bcrypt` rounds $\ge 12$.
 * [x] `AC-44.2`: Chặn lỗi IDOR khi Cư dân truy cập chéo ID hộ (trả về `404 NOT_FOUND`).
 * [ ] `AC-45.1`: Lập lịch tự động sao lưu CSDL lúc 02:00 sáng, RTO $\le 2\text{h}$, lưu 30 ngày.
-* [ ] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
+* [x] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
 * [x] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
 * [x] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.
 * [x] `AC-29.1`: Đổi mật khẩu mới độ dài $\ge 8$ ký tự, bắt buộc đổi trong lần đầu đăng nhập.
@@ -219,8 +219,8 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 * [x] `AC-30.2`: Tự động sinh tài khoản Cư dân mặc định khi tạo Hộ gia đình mới.
 * [x] `AC-31.1`: Middleware RBAC Guard kiểm tra quyền trên mọi API endpoint; gán/thu hồi role có hiệu lực ngay.
 * [x] `AC-32.1`: Lưu rõ User thực hiện, Thời gian, Hành động, Giá trị cũ $\rightarrow$ Giá trị mới; Tuyệt đối chặn xóa/sửa bảng `audit_logs`.
-* [ ] `AC-01.1`: Căn hộ có mã không trùng lặp, diện tích $> 0\text{ m}^2$.
-* [ ] `AC-01.2`: Tách biệt độc lập 2 thực thể Căn hộ và Hộ gia đình (`T-01`, `T-02`).
+* [x] `AC-01.1`: Căn hộ có mã không trùng lặp, diện tích $> 0\text{ m}^2$.
+* [x] `AC-01.2`: Tách biệt độc lập 2 thực thể Căn hộ và Hộ gia đình (`T-01`, `T-02`).
 * [ ] `AC-02.1`: Kiểm tra tất toán công nợ trước khi đổi chủ hộ; ghi Audit Log `CHANGE_HEAD`.
 * [ ] `AC-03.1`: Chuyển nhượng căn hộ: đóng hồ sơ hộ cũ, gắn hộ mới, bảo toàn 100% lịch sử hóa đơn.
 * [ ] `AC-12.1`: Khai báo mã, tên, fee_group, calc_method, đơn vị tính của khoản thu.
