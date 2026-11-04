@@ -83,7 +83,7 @@ backend/
 │       ├── pdf_generator.py         # Xuất hóa đơn/biên lai PDF có đóng dấu "BẢN SAO"
 │       └── backup_service.py        # Dịch vụ gọi pg_dump sao lưu CSDL tự động 02:00 sáng
 │
-├── tests/                           # Unit test & Integration test (352 test cases: US-44, US-28)
+├── tests/                           # Unit test & Integration test (433 test cases: US-44, US-28, US-29)
 ├── .env.example                     # Mẫu biến môi trường
 ├── pytest.ini                       # Cấu hình pytest (asyncio loop scope)
 ├── requirements.txt                 # Danh sách gói phụ thuộc Python
