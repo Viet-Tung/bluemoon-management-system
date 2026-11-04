@@ -9,6 +9,13 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.common import Error, ErrorDetail, PageMeta
+from app.schemas.user import (
+    TempPassword,
+    UserCreate,
+    UserPage,
+    UserUpdate,
+    UserWithTempPassword,
+)
 
 __all__ = [
     "TokenPayload",
@@ -20,4 +27,9 @@ __all__ = [
     "Error",
     "ErrorDetail",
     "PageMeta",
+    "UserCreate",
+    "UserUpdate",
+    "UserWithTempPassword",
+    "TempPassword",
+    "UserPage",
 ]
