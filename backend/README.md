@@ -1,67 +1,89 @@
 # ⚙️ Backend API Server - Chung Cư BlueMoon (Python FastAPI)
 
-Thư mục này chứa toàn bộ mã nguồn xử lý nghiệp vụ (Business Logic), kết nối Cơ sở dữ liệu, phân quyền RBAC, bảo mật an ninh và cung cấp hệ thống RESTful API chuẩn OpenAPI 3.0.3 cho dự án **Quản lý & Thu phí Chung Cư BlueMoon**.
+Thư mục này chứa toàn bộ mã nguồn xử lý nghiệp vụ (Business Logic), kết nối Cơ sở dữ liệu, phân quyền RBAC và cung cấp RESTful API cho giao diện Frontend.
 
 ---
 
 ## 🛠️ 1. Ngôn ngữ & Công nghệ sử dụng (Tech Stack)
 
-* **Ngôn ngữ lập trình:** **Python 3.10+** (Môi trường phát triển TV1: Python 3.14.2 tại `backend/venv`).
-* **Web Framework:** **FastAPI 0.162+** (ASGI async, hỗ trợ OpenAPI 3.0.3 tự động tại `/docs` và `/redoc`).
-* **ORM & Quản lý CSDL:** **SQLAlchemy 2.0** (Declarative 2.0 Style) + **Alembic**.
-* **Database Engine:** **PostgreSQL 15+** (Hỗ trợ 28 bảng theo [database/01_schema.sql](../database/01_schema.sql)).
-* **Bảo mật & Xác thực (`NFR-001`, `EP-05`, `US-44`, `US-28`, `US-29`):**
-  * `bcrypt 5.0+`: Băm mật khẩu an toàn với work factor rounds $\ge 12$ chống tấn công brute-force (`AC-44.1`).
-  * `PyJWT 2.15+`: Sinh và xác thực JWT Access Token (HS256, hạn 8 giờ / 28.800 giây).
-  * `RBAC Guard Middleware`: Kiểm soát quyền truy cập theo vai trò trên từng endpoint (`US-31`).
-  * `IDOR Defense`: Kiểm soát chống truy cập chéo dữ liệu giữa các hộ gia đình cư dân (`AC-44.2`).
+* **Ngôn ngữ lập trình:** **Python 3.10+** (Môi trường phát triển TV1: Python 3.14.2)
+* **Web Framework:** **FastAPI** (Tốc độ cao, hỗ trợ async, tự động sinh tài liệu Swagger UI tại `/docs`).
+* **ORM & Quản lý CSDL:** **SQLAlchemy 2.0** + **Alembic** (Quản lý phiên bản cấu trúc bảng).
+* **Database Engine:** **PostgreSQL 15+** (28 bảng khớp [database/01_schema.sql](../database/01_schema.sql)).
+* **Bảo mật & Xác thực (`NFR-001`, `EP-05`, `US-44`, `US-28`):**
+  * `bcrypt`: Băm và xác thực mật khẩu an toàn theo thuật toán `bcrypt` chuẩn (rounds $\ge 12$).
+  * `pyjwt[crypto]`: Tạo và giải mã `JWT Token` (thuật toán HS256, access token hết hạn sau 8 giờ).
 * **Kiểm thử tự động (Automated Testing):**
-  * `pytest 9.0+`, `pytest-asyncio`, `httpx`: Môi trường kiểm thử độc lập SQLite in-memory (`StaticPool`), cô lập hoàn toàn giữa các test case, đạt **433 test cases tự động** (100% PASS).
-* **Xử lý Excel & Báo cáo PDF (`US-04`, `US-11`, `US-20`, `US-26`):**
-  * `pandas` & `openpyxl`: Import danh sách căn hộ/nhân khẩu từ Excel (`DOC-01`) và trích xuất báo cáo.
-  * `reportlab` / `weasyprint`: Xuất hóa đơn, biên lai thu phí (`DOC-02`) có đóng dấu `BẢN SAO`.
+  * `pytest`, `pytest-asyncio`, `httpx`: Bộ test suite tự động kiểm thử toàn bộ API endpoints, RBAC middleware, và IDOR defense trên môi trường SQLite in-memory (StaticPool), gồm 352 test cases tự động.
+* **Xử lý Excel & In ấn PDF (`US-04`, `US-11`, `US-20`, `US-26`):**
+  * `pandas` & `openpyxl`: Đọc file Excel khi Import danh sách hộ và xuất báo cáo thu phí/cư trú.
+  * `reportlab` hoặc `weasyprint`: Xuất biên lai điện tử (`DOC-02`) và giấy báo phí ra định dạng PDF chuẩn tiếng Việt.
 
 ---
 
 ## 👥 2. Phân công & Cấu trúc thư mục `backend/`
 
-Phân hệ Backend do **2 thành viên** phụ trách theo mô hình Peer-to-Peer:  
-* `TV1: Lê Trường Giang` | Backend Developer
-* `TV2: Nguyễn Việt Tùng` | Backend Developer
+Phân hệ Backend do **2 thành viên** phụ trách: `TV1: Lê Trường Giang` & `TV2: Nguyễn Việt Tùng`.  
+Cấu trúc mã nguồn bám sát 100% lược đồ CSDL [database/01_schema.sql](../database/01_schema.sql) (28 bảng) và Hợp đồng API [docs/openapi.yaml](../docs/openapi.yaml):
 
 ```text
 backend/
 ├── app/
-│   ├── main.py                      # Khởi chạy FastAPI, cấu hình CORS & Error Handlers chuẩn
+│   ├── main.py                      # File khởi chạy ứng dụng FastAPI, cấu hình CORS & Exception handlers
 │   ├── core/                        # Cấu hình hệ thống cốt lõi
-│   │   ├── config.py                # Đọc biến môi trường (.env: DATABASE_URL, JWT_SECRET,...)
+│   │   ├── config.py                # Đọc biến môi trường (.env: DATABASE_URL, JWT_SECRET, ALGORITHM)
 │   │   ├── database.py              # Kết nối PostgreSQL (SQLAlchemy 2.0 Engine & SessionLocal ACID)
-│   │   ├── security.py              # Hàm băm bcrypt, verify password, JWT token, validate độ mạnh
-│   │   └── rbac_middleware.py       # Middleware RBAC Guard, IDOR defense & Bearer authentication
+│   │   ├── security.py              # Hàm băm bcrypt, xác thực password, tạo JWT Token
+│   │   └── rbac_middleware.py       # RBAC Guard kiểm tra quyền ADMIN/ACCOUNTANT/TREASURER/RESIDENT (US-31)
 │   │
-│   ├── models/                      # Định nghĩa ORM Models (SQLAlchemy 2.0)
-│   │   ├── base.py                  # Base class & TimestampMixin (created_at, updated_at)
-│   │   ├── user.py                  # Bảng users, roles, audit_logs (Cụm tối thiểu Sprint 1)
-│   │   ├── apartment.py             # Bảng apartments, households, occupancies, residents
-│   │   └── fee.py                   # Bảng fee_types (Danh mục khoản thu)
+│   ├── models/                      # Định nghĩa 28 bảng CSDL (SQLAlchemy ORM Models khớp 01_schema.sql)
+│   │   ├── user.py                  # Bảng users, roles, audit_logs, backup_jobs, document_counters
+│   │   ├── apartment.py             # Bảng apartments, households, apartment_occupancies, residents, vehicles
+│   │   ├── residency.py             # Bảng temporary_residences, temporary_absences, residency_events
+│   │   ├── fee.py                   # Bảng service_providers, fee_types, fee_rates, fee_exemptions
+│   │   ├── billing.py               # Bảng billing_periods, utility_readings, invoices, invoice_items
+│   │   ├── payment.py               # Bảng payments, payment_allocations, household_credit_ledger, provider_settlements
+│   │   ├── donation.py              # Bảng donation_campaigns, donations
+│   │   └── portal.py                # Bảng profile_change_requests
 │   │
 │   ├── schemas/                     # Pydantic v2 Models (Khớp 100% docs/openapi.yaml)
-│   │   ├── auth.py                  # LoginRequest, LoginResponse, ChangePasswordRequest, UserResponse
-│   │   ├── common.py                # Schema Error, ErrorDetail, PageMeta dùng chung
-│   │   └── ...
+│   │   ├── auth.py                  # LoginRequest, LoginResponse, ChangePasswordRequest
+│   │   ├── user.py                  # UserCreate, UserUpdate, UserRoleUpdate, UserPage
+│   │   ├── apartment.py             # ApartmentCreate, ApartmentUpdate, ApartmentPage
+│   │   ├── household.py             # HouseholdCreate, HouseholdUpdate, HouseholdTransferRequest
+│   │   ├── resident.py              # ResidentCreate, ResidentUpdate, TemporaryStayCreate
+│   │   ├── fee.py                   # FeeTypeCreate, FeeTypeUpdate, FeeRateCreate
+│   │   ├── billing.py               # BillingPeriodCreate, InvoicePage, UtilityReadingCreate
+│   │   ├── payment.py               # PaymentCreate (kèm Idempotency-Key), ReceiptResponse
+│   │   ├── donation.py              # DonationCampaignCreate, DonationRecordCreate
+│   │   └── common.py                # Error, PageMeta
 │   │
-│   ├── routers/                     # Router API Modules theo tiền tố /api/v1
-│   │   └── auth.py                  # POST /login, POST /logout, GET /me, POST /change-password
+│   ├── routers/                     # 17 Router Modules (Hiện thực 97 endpoints theo openapi.yaml)
+│   │   ├── auth.py                  # POST /auth/login, POST /auth/logout, GET /auth/me, POST /auth/change-password
+│   │   ├── users.py                 # Quản lý tài khoản, phân quyền vai trò, khóa/mở khóa
+│   │   ├── system.py                # Sao lưu CSDL, xem lịch sử sao lưu, Audit Log
+│   │   ├── apartments.py            # Quản lý căn hộ vật lý (diện tích, tầng)
+│   │   ├── households.py            # Hộ gia đình, đổi chủ hộ, chuyển nhượng căn hộ
+│   │   ├── residents.py             # Nhân khẩu, biến động dân cư
+│   │   ├── temporary_stays.py       # Đăng ký tạm trú, tạm vắng, cảnh báo hết hạn
+│   │   ├── import_data.py           # Import danh sách từ Excel (DOC-01)
+│   │   ├── portal.py                # Cổng cư dân tra cứu thông tin hộ, công nợ
+│   │   ├── change_requests.py       # Duyệt đề nghị chỉnh sửa thông tin từ cư dân
+│   │   ├── fee_types.py             # Danh mục khoản thu, đơn giá, miễn giảm phí
+│   │   ├── service_providers.py     # Thu hộ & đối soát nhà cung cấp điện nước
+│   │   ├── vehicles.py              # Phương tiện, đăng ký gửi xe
+│   │   ├── billing.py               # Tạo kỳ thu, chốt phí, nhập chỉ số điện nước
+│   │   ├── cashier.py               # Quầy thu tiền, gạch nợ tự động, in biên lai
+│   │   ├── donations.py             # Vận động quỹ tự nguyện, in phiếu thu
+│   │   └── reports.py               # Omnibox tìm kiếm, báo cáo tài chính, báo cáo Công an, Dashboard
 │   │
-│   └── utils/                       # Tiện ích dùng chung
-│       └── audit_logger.py          # Helper ghi nhật ký kiểm toán bất biến
+│   └── utils/                       # Hàm tiện ích dùng chung
+│       ├── audit_logger.py          # Ghi log nhạy cảm vào bảng audit_logs
+│       ├── excel_handler.py         # Xử lý import Excel và export báo cáo biểu mẫu
+│       ├── pdf_generator.py         # Xuất hóa đơn/biên lai PDF có đóng dấu "BẢN SAO"
+│       └── backup_service.py        # Dịch vụ gọi pg_dump sao lưu CSDL tự động 02:00 sáng
 │
-├── tests/                           # Bộ kiểm thử tự động (433 test cases: 100% Pass)
-│   ├── conftest.py                  # Fixtures SQLite in-memory (StaticPool), Seed test users
-│   ├── test_us44_security.py        # 238 test cases: Bcrypt rounds >= 12, RBAC, IDOR Defense
-│   ├── test_us28_auth.py            # 114 test cases: Login, Logout, Me, Brute-force Lockout 15m
-│   └── test_us29_change_password.py # 81 test cases: Đổi mật khẩu, bắt buộc đổi lần đầu, AC-29.1
-│
+├── tests/                           # Unit test & Integration test (433 test cases: US-44, US-28, US-29)
 ├── .env.example                     # Mẫu biến môi trường
 ├── pytest.ini                       # Cấu hình pytest (asyncio loop scope)
 ├── requirements.txt                 # Danh sách gói phụ thuộc Python
@@ -70,78 +92,34 @@ backend/
 
 ---
 
-## 📊 3. Tiến độ thực hiện User Stories (Sprint 1)
+## 🚀 3. Hướng dẫn cài đặt và chạy Backend (Cho Backend Developers)
 
-| Mã US | Tên User Story | SP | Người thực hiện | Người Review | Số Test Cases | Trạng thái |
-| :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| **US-44** | Kiến trúc An ninh, Băm mật khẩu Bcrypt & Chống IDOR | 4 | TV2: Nguyễn Việt Tùng | TV1: Lê Trường Giang | 238 tests | **HOÀN THÀNH** |
-| **US-28** | Đăng nhập hệ thống & Khóa tài khoản Brute-force | 4 | TV1: Lê Trường Giang | TV2: Nguyễn Việt Tùng | 114 tests | **HOÀN THÀNH** |
-| **US-29** | Đổi mật khẩu cá nhân & Buộc đổi lần đầu | 2 | TV1: Lê Trường Giang | TV2: Nguyễn Việt Tùng | 81 tests | **HOÀN THÀNH** |
-| **US-30** | Quản lý tài khoản người dùng & Tự tạo tài khoản Hộ | 4 | TV1 / TV2 | Chéo TV | - | *Sprint 1 Tiếp theo* |
-| **US-31** | Phân quyền vai trò RBAC Guard | 2 | TV1 / TV2 | Chéo TV | - | *Sprint 1 Tiếp theo* |
-| **US-32** | Xem nhật ký kiểm toán (Audit Logs) | 2 | TV1 / TV2 | Chéo TV | - | *Sprint 1 Tiếp theo* |
-
----
-
-## 📡 4. Danh sách API Endpoints Phân hệ Auth (`/api/v1/auth`)
-
-Toàn bộ các endpoint tuân thủ 100% hợp đồng API tại [docs/openapi.yaml](../docs/openapi.yaml):
-
-| Phương thức | Đường dẫn | Quyền truy cập | Mã phản hồi | Mô tả nghiệp vụ |
-| :---: | :--- | :---: | :---: | :--- |
-| **POST** | `/api/v1/auth/login` | Public | `200`, `400`, `401`, `423` | Đăng nhập hệ thống. Cấp JWT token 8h. Nhập sai 5 lần liên tiếp tự khóa 15 phút (`ACCOUNT_LOCKED`). |
-| **POST** | `/api/v1/auth/logout` | Authenticated | `204`, `401` | Thu hồi phiên làm việc hiện tại của người dùng. |
-| **GET** | `/api/v1/auth/me` | Authenticated | `200`, `401` | Lấy thông tin hồ sơ (Profile) của người dùng hiện tại kèm vai trò. |
-| **POST** | `/api/v1/auth/change-password` | Authenticated | `204`, `400`, `401` | Đổi mật khẩu cá nhân (hỗ trợ cả khi `must_change_password=True`). Sai mật khẩu cũ trả `400 WRONG_OLD_PASSWORD`. Mật khẩu mới bám chuẩn `AC-29.1`. |
-
----
-
-## 🚀 5. Hướng dẫn Cài đặt & Chạy ứng dụng
-
-### 5.1. Khởi tạo môi trường ảo Python
-Mở Terminal tại thư mục gốc `backend/`:
+Mở Terminal tại thư mục `backend/` và chạy lần lượt các lệnh sau:
 
 ```bash
-# 1. Tạo môi trường ảo (Virtual Environment)
+# 1. Tạo môi trường ảo Python (Virtual Environment)
 python -m venv venv
 
 # 2. Kích hoạt môi trường ảo
-# Trên Windows (PowerShell):
-venv\Scripts\Activate.ps1
-# Trên macOS / Linux:
+# - Trên Windows:
+venv\Scripts\activate
+# - Trên macOS / Linux:
 source venv/bin/activate
 
-# 3. Cài đặt các thư viện phụ thuộc
+# 3. Cài đặt các thư viện cần thiết từ requirements.txt
 pip install -r requirements.txt
 
-# 4. Sao chép cấu hình môi trường
+# 4. Tạo file cấu hình môi trường .env từ mẫu .env.example
 copy .env.example .env     # Trên Windows
 # cp .env.example .env     # Trên Linux/macOS
-```
 
-### 5.2. Chạy bộ kiểm thử tự động (Automated Test Suite)
-Môi trường test chạy trên SQLite in-memory độc lập với CSDL PostgreSQL:
-
-```bash
-# Chạy toàn bộ 433 test cases hệ thống
+# 5. Chạy bộ kiểm thử tự động (Unit & Integration tests)
 pytest -c pytest.ini tests -v
 
-# Chạy riêng bộ test US-29 (Đổi mật khẩu cá nhân - 81 tests)
-pytest tests/test_us29_change_password.py -v
-
-# Chạy riêng bộ test US-28 (Đăng nhập & Khóa brute-force - 114 tests)
-pytest tests/test_us28_auth.py -v
-
-# Chạy riêng bộ test US-44 (An ninh & Chống IDOR - 238 tests)
-pytest tests/test_us44_security.py -v
+# 6. Chạy Server phát triển (Development Server)
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 5.3. Khởi chạy Development Server
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Sau khi server khởi động thành công, truy cập:
-* **Swagger UI API Explorer:** [http://localhost:8000/docs](http://localhost:8000/docs)
-* **ReDoc Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
-* **Health Check Endpoint:** [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
+* Sau khi chạy thành công, mở trình duyệt truy cập:
+  * **Trang API Docs tự động (Swagger UI):** `http://localhost:8000/docs`
+  * **Trang Redoc:** `http://localhost:8000/redoc`
