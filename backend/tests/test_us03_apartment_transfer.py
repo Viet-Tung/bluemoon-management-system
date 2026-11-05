@@ -1,19 +1,23 @@
-import sqlite3
 import pytest
 from datetime import date, datetime, timedelta
 from sqlalchemy import text
 
 from app.core.security import create_access_token
+try:
+    from tests.us03_seed_data import SEED_DATA
+except ImportError:
+    from us03_seed_data import SEED_DATA
 
 
 # ==============================================================================
-# FIXTURES & BASE SETUP (Using database/bluemoon_debug.db as foundation)
+# FIXTURES & BASE SETUP (Purely In-Memory Hermetic Test Foundation)
 # ==============================================================================
 
 @pytest.fixture(autouse=True)
 def load_debug_db(db_session):
     """
-    Restore test domain tables from database/bluemoon_debug.db into in-memory SQLite for complete isolation,
+    Restore test domain tables purely in-memory from SEED_DATA for complete isolation,
+    without any dependency on external .db files on disk,
     while strictly preserving conftest.py users and roles.
     """
     # 0. Ensure invoices and invoice_items tables exist in test sqlite
@@ -62,24 +66,16 @@ def load_debug_db(db_session):
             pass
     db_session.commit()
 
-    # 2. Copy domain data from database/bluemoon_debug.db
-    source = sqlite3.connect("database/bluemoon_debug.db")
-    raw_conn = db_session.connection().connection.driver_connection
-    src_cursor = source.cursor()
-    dest_cursor = raw_conn.cursor()
-
-    domain_tables = [
-        "apartments", "households", "apartment_occupancies",
-        "residents", "invoices", "invoice_items"
-    ]
-    for tbl in domain_tables:
-        src_cursor.execute(f"SELECT * FROM {tbl}")
-        rows = src_cursor.fetchall()
-        if rows:
-            placeholders = ", ".join(["?"] * len(rows[0]))
-            dest_cursor.executemany(f"INSERT INTO {tbl} VALUES ({placeholders})", rows)
-    raw_conn.commit()
-    source.close()
+    # 2. Insert seed data purely in-memory
+    for tbl, rows in SEED_DATA.items():
+        if not rows:
+            continue
+        cols = list(rows[0].keys())
+        col_names = ", ".join(cols)
+        val_placeholders = ", ".join([f":{c}" for c in cols])
+        sql = f"INSERT INTO {tbl} ({col_names}) VALUES ({val_placeholders})"
+        db_session.execute(text(sql), rows)
+    db_session.commit()
 
     # 3. Ensure a treasurer user (id=5) exists for RBAC tests without overwriting users 1..4
     u_treasurer = db_session.execute(text("SELECT id FROM users WHERE id = 5")).fetchone()

@@ -104,3 +104,4 @@ backend/tests/
   7. *Kịch bản thành công & Chuyển dịch trạng thái (15 test cases):* Happy path, schema phản hồi, đóng occupancy cũ, mở occupancy mới, kiểm tra lại trạng thái hộ cũ và mới qua GET, không có lý do, lý do tiếng Việt Unicode, lý do dài, ngày trùng boundary, chuyển nhượng liên tiếp theo chuỗi (A $\rightarrow$ B $\rightarrow$ C).
   8. *Nhật ký kiểm toán Audit Log (5 test cases):* Sinh bản ghi `TRANSFER_APARTMENT`, khớp admin user_id, khớp entity_id, lưu đúng reason, ghi nhận old_value và new_value.
   9. *Bảo toàn dữ liệu & Tính toàn vẹn ACID (8 test cases):* Bảo toàn 100% hóa đơn hộ cũ (`AC-03.1`), bảo toàn nhân khẩu hộ cũ, bảo toàn nhân khẩu hộ mới, ngăn chuyển nhượng lần 2 khi không còn căn hộ, rollback khi lỗi hộ đích, rollback khi lỗi công nợ, rollback khi hộ nhận đã có căn hộ, giữ nguyên trạng thái ACTIVE của căn hộ vật lý.
+
