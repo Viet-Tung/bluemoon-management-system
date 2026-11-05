@@ -175,7 +175,7 @@ def create_fee_type(
 
 
 @router.get(
-    "/{id}",
+    "/{id:int}",
     response_model=FeeTypeSchema,
     status_code=status.HTTP_200_OK,
     summary="Chi tiết khoản thu",
@@ -200,7 +200,7 @@ def get_fee_type(
 
 
 @router.patch(
-    "/{id}",
+    "/{id:int}",
     response_model=FeeTypeSchema,
     status_code=status.HTTP_200_OK,
     summary="Cập nhật khoản thu",
@@ -277,7 +277,7 @@ def update_fee_type(
 
 
 @router.post(
-    "/{id}/deactivate",
+    "/{id:int}/deactivate",
     response_model=FeeTypeSchema,
     status_code=status.HTTP_200_OK,
     summary="Ngừng áp dụng khoản thu",

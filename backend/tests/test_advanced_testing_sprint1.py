@@ -542,6 +542,28 @@ class TestBoundaryAndPrecisionEdgeCases:
         assert data["page"] == 999999
         assert isinstance(data["total"], int)
 
+    def test_non_integer_path_param_returns_404_not_401(self, client):
+        """
+        Kiểm thử nhận diện đường dẫn (Path Parameter Typing - Starlette Converter):
+        Khi client gọi một đường dẫn không tồn tại như /households/not-a-path, /apartments/not-a-path,
+        /fee-types/not-a-path, /users/not-a-path KHÔNG có token xác thực:
+        Starlette phải nhận diện không khớp route (nhờ khai báo tường minh {id:int}) và trả về 404 Not Found,
+        tuyệt đối KHÔNG được kích hoạt middleware xác thực trước và trả về 401 UNAUTHENTICATED.
+        """
+        invalid_endpoints = [
+            "/api/v1/households/not-a-path",
+            "/api/v1/apartments/not-a-path",
+            "/api/v1/fee-types/not-a-path",
+            "/api/v1/users/not-a-path",
+            "/api/v1/households/invalid-string/transfer",
+            "/api/v1/households/invalid-string/deactivate",
+            "/api/v1/fee-types/invalid-string/deactivate",
+            "/api/v1/users/invalid-string/lock",
+        ]
+        for ep in invalid_endpoints:
+            res = client.get(ep)
+            assert res.status_code == 404, f"Endpoint {ep} trả về {res.status_code} thay vì 404!"
+
 
 # ==============================================================================
 # 5. NO HARD DELETE INVARIANT VERIFICATION (TIÊU CHUẨN KỸ THUẬT BẤT BIẾN)

@@ -549,17 +549,17 @@ def test_us13_boundary_large_int64_id(client, auth_headers_admin):
 
 
 def test_us13_invalid_string_id(client, auth_headers_admin):
-    """US-13: Path with string ID returns 400 VALIDATION_ERROR or 422."""
+    """US-13: Path with string ID returns 400 VALIDATION_ERROR, 404 or 422."""
     res = client.post("/api/v1/fee-types/abc/deactivate", headers=auth_headers_admin)
-    assert res.status_code in [400, 422]
+    assert res.status_code in [400, 404, 422]
     if res.status_code == 400:
         assert res.json()["code"] == "VALIDATION_ERROR"
 
 
 def test_us13_invalid_float_id(client, auth_headers_admin):
-    """US-13: Path with float ID returns 400 VALIDATION_ERROR or 422."""
+    """US-13: Path with float ID returns 400 VALIDATION_ERROR, 404 or 422."""
     res = client.post("/api/v1/fee-types/1.5/deactivate", headers=auth_headers_admin)
-    assert res.status_code in [400, 422]
+    assert res.status_code in [400, 404, 422]
     if res.status_code == 400:
         assert res.json()["code"] == "VALIDATION_ERROR"
 

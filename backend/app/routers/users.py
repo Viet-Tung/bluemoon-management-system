@@ -172,7 +172,7 @@ def create_user(
 
 
 @router.get(
-    "/{userId}",
+    "/{userId:int}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Chi tiết tài khoản",
@@ -195,7 +195,7 @@ def get_user(
 
 
 @router.patch(
-    "/{userId}",
+    "/{userId:int}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin tài khoản",
@@ -231,7 +231,7 @@ def update_user(
 
 
 @router.put(
-    "/{userId}/role",
+    "/{userId:int}/role",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Gán hoặc thu hồi vai trò",
@@ -317,7 +317,7 @@ def set_user_role(
 
 
 @router.post(
-    "/{userId}/lock",
+    "/{userId:int}/lock",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Khóa tài khoản",
@@ -371,7 +371,7 @@ def lock_user(
 
 
 @router.post(
-    "/{userId}/unlock",
+    "/{userId:int}/unlock",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Mở khóa tài khoản",
@@ -424,7 +424,7 @@ def unlock_user(
 
 
 @router.post(
-    "/{userId}/reset-password",
+    "/{userId:int}/reset-password",
     response_model=TempPassword,
     status_code=status.HTTP_200_OK,
     summary="Cấp lại mật khẩu tạm",

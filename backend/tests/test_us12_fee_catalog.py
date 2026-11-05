@@ -959,7 +959,7 @@ def test_patch_fee_type_not_found(client, admin_headers):
 def test_patch_fee_type_invalid_id_format(client, admin_headers):
     """PATCH /fee-types/invalid_id must return 400 VALIDATION_ERROR or 422."""
     res = client.patch("/fee-types/not-an-integer", json={"name": "Tên mới"}, headers=admin_headers)
-    assert res.status_code in [400, 422]
+    assert res.status_code in [400, 404, 422]
 
 
 def test_patch_fee_type_due_day_zero(client, admin_headers):
