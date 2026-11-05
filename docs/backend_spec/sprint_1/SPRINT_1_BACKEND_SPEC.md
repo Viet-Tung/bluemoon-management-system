@@ -210,7 +210,7 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 
 * [x] `AC-44.1`: Mật khẩu lưu dạng băm `bcrypt` rounds $\ge 12$.
 * [x] `AC-44.2`: Chặn lỗi IDOR khi Cư dân truy cập chéo ID hộ (trả về `404 NOT_FOUND`).
-* [ ] `AC-45.1`: Lập lịch tự động sao lưu CSDL lúc 02:00 sáng, RTO $\le 2\text{h}$, lưu 30 ngày.
+* [x] `AC-45.1`: Lập lịch tự động sao lưu CSDL lúc 02:00 sáng, RTO $\le 2\text{h}$, lưu 30 ngày.
 * [x] `AC-46.1`: Đảm bảo tính nguyên tử ACID, tự động rollback khi gặp lỗi giữa chừng.
 * [x] `AC-28.1`: Đăng nhập đúng trả về JWT token và thông tin user khớp vai trò.
 * [x] `AC-28.2`: Nhập sai mật khẩu 5 lần liên tiếp tự động khóa tài khoản 15 phút.

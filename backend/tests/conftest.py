@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token, get_password_hash
 from app.main import app
 from app.models.base import Base
-from app.models.user import AuditLog, Role, User
+from app.models.user import AuditLog, BackupJob, Role, User
 
 # In-memory SQLite Database dedicated for fast, isolated testing
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -101,6 +101,7 @@ def db_session():
     # Dọn dẹp audit_logs và reset trạng thái users sau mỗi test
     try:
         session.query(AuditLog).delete()
+        session.query(BackupJob).delete()
         session.query(User).update({
             User.failed_login_count: 0,
             User.locked_until: None,
