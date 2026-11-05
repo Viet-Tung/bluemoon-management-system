@@ -17,6 +17,18 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.common import Error, ErrorDetail, PageMeta
+from app.schemas.fee import (
+    CalcMethod,
+    FeeCycle,
+    FeeGroup,
+    FeeStatus,
+    FeeType,
+    FeeTypeBase,
+    FeeTypeCreate,
+    FeeTypePage,
+    FeeTypeUpdate,
+    VehicleType,
+)
 from app.schemas.household import (
     Household,
     HouseholdChangeHead,
@@ -71,4 +83,14 @@ __all__ = [
     "Household",
     "HouseholdCreated",
     "HouseholdPage",
+    "FeeGroup",
+    "CalcMethod",
+    "VehicleType",
+    "FeeCycle",
+    "FeeStatus",
+    "FeeTypeBase",
+    "FeeTypeCreate",
+    "FeeTypeUpdate",
+    "FeeType",
+    "FeeTypePage",
 ]

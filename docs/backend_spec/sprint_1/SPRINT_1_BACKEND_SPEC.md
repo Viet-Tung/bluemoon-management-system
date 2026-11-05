@@ -223,7 +223,7 @@ Trích xuất trực tiếp từ `docs/API_CONTRACT.md`:
 * [x] `AC-01.2`: Tách biệt độc lập 2 thực thể Căn hộ và Hộ gia đình (`T-01`, `T-02`).
 * [x] `AC-02.1`: Kiểm tra tất toán công nợ trước khi đổi chủ hộ; ghi Audit Log `CHANGE_HEAD`.
 * [x] `AC-03.1`: Chuyển nhượng căn hộ: đóng hồ sơ hộ cũ, gắn hộ mới, bảo toàn 100% lịch sử hóa đơn.
-* [ ] `AC-12.1`: Khai báo mã, tên, fee_group, calc_method, đơn vị tính của khoản thu.
+* [x] `AC-12.1`: Khai báo mã, tên, fee_group, calc_method, đơn vị tính của khoản thu.
 * [ ] `AC-13.1`: Cấm xóa vật lý khoản thu (No hard delete); chỉ chuyển trạng thái sang `INACTIVE`.
 
 ---
