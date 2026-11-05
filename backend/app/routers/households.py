@@ -13,6 +13,7 @@ from app.models.user import AuditLog, Role, User
 from app.schemas.household import (
     Household as HouseholdSchema,
     HouseholdChangeHead,
+    HouseholdTransferRequest,
     HouseholdCreate,
     HouseholdCreated,
     HouseholdDeactivate,
@@ -477,6 +478,173 @@ def deactivate_household(
     db.refresh(household)
 
     return build_household_schema(db, household)
+
+
+@router.post(
+    "/{id:int}/transfer",
+    response_model=HouseholdSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Chuyển nhượng căn hộ từ hộ này sang hộ mới",
+    description="`{id}` là hộ đang giữ căn hộ. Kết thúc `apartment_occupancies` của hộ cũ và mở bản ghi mới cho `new_household_id` tại `effective_date`. Hộ cũ phải hết công nợ (US-03, AC-03.1). Phân quyền: ADMIN.",
+)
+def transfer_household(
+    id: int,
+    req: HouseholdTransferRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN")),
+) -> HouseholdSchema:
+    """Chuyển nhượng quyền cư trú căn hộ từ hộ gia đình hiện tại sang hộ gia đình mới (US-03)."""
+    # 1. Kiểm tra tồn tại hộ gia đình cũ ({id})
+    old_household = db.scalar(select(Household).where(Household.id == id))
+    if not old_household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy hộ gia đình có ID {id}."
+        )
+
+    # 2. Kiểm tra tồn tại hộ gia đình mới (new_household_id)
+    new_household = db.scalar(select(Household).where(Household.id == req.new_household_id))
+    if not new_household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy hộ gia đình nhận chuyển nhượng có ID {req.new_household_id}."
+        )
+
+    # 3. Không cho phép chuyển nhượng cho chính hộ đó
+    if old_household.id == new_household.id:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Không thể chuyển nhượng căn hộ cho chính hộ gia đình đó."
+        )
+
+    # 4. Kiểm tra trạng thái hoạt động của cả hai hộ
+    if old_household.status != "ACTIVE":
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Hộ gia đình chuyển nhượng đã ngừng hoạt động (INACTIVE), không thể thực hiện chuyển nhượng."
+        )
+
+    if new_household.status != "ACTIVE":
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Hộ gia đình nhận chuyển nhượng đã ngừng hoạt động (INACTIVE), không thể nhận chuyển nhượng căn hộ."
+        )
+
+    # 5. Kiểm tra hộ cũ có đang cư trú tại căn hộ nào không (HOUSEHOLD_HAS_NO_APARTMENT)
+    old_occupancy_row = db.execute(
+        select(ApartmentOccupancy, Apartment)
+        .join(Apartment, Apartment.id == ApartmentOccupancy.apartment_id)
+        .where(
+            ApartmentOccupancy.household_id == old_household.id,
+            ApartmentOccupancy.end_date.is_(None)
+        )
+    ).first()
+
+    if not old_occupancy_row:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="HOUSEHOLD_HAS_NO_APARTMENT",
+            message="Hộ gia đình hiện không cư trú tại căn hộ nào, không thể chuyển nhượng."
+        )
+
+    old_occupancy, apt = old_occupancy_row
+
+    # 6. Kiểm tra ngày hiệu lực chuyển nhượng không được trước ngày bắt đầu cư trú của hộ cũ
+    if req.effective_date < old_occupancy.start_date:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message=f"Ngày hiệu lực chuyển nhượng ({req.effective_date}) không được trước ngày bắt đầu cư trú của hộ cũ ({old_occupancy.start_date})."
+        )
+
+    # 7. Kiểm tra tất toán công nợ của hộ cũ (AC-03.1, DEBT_NOT_SETTLED)
+    if check_household_has_debt(db, old_household.id):
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DEBT_NOT_SETTLED",
+            message="Hộ gia đình còn công nợ chưa tất toán, không thể chuyển nhượng căn hộ."
+        )
+
+    # 8. Kiểm tra hộ mới đã có căn hộ khác đang cư trú chưa (APARTMENT_OCCUPIED)
+    new_hh_active_occ = db.scalar(
+        select(ApartmentOccupancy).where(
+            ApartmentOccupancy.household_id == new_household.id,
+            ApartmentOccupancy.end_date.is_(None)
+        )
+    )
+    if new_hh_active_occ:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="APARTMENT_OCCUPIED",
+            message="Hộ gia đình nhận chuyển nhượng hiện đang cư trú tại một căn hộ khác."
+        )
+
+    # Kiểm tra căn hộ có bản ghi cư trú nào khác đang mở không
+    other_apt_occ = db.scalar(
+        select(ApartmentOccupancy).where(
+            ApartmentOccupancy.apartment_id == apt.id,
+            ApartmentOccupancy.household_id != old_household.id,
+            ApartmentOccupancy.end_date.is_(None)
+        )
+    )
+    if other_apt_occ:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="APARTMENT_OCCUPIED",
+            message=f"Căn hộ '{apt.code}' đang có hộ gia đình khác cư trú."
+        )
+
+    # 9. Thực thi chuyển nhượng trong giao dịch ACID
+    old_occupancy.end_date = req.effective_date
+    old_occupancy.end_reason = req.reason.strip() if req.reason else f"Chuyển nhượng căn hộ sang hộ {new_household.household_code}"
+
+    new_occupancy = ApartmentOccupancy(
+        apartment_id=apt.id,
+        household_id=new_household.id,
+        start_date=req.effective_date,
+        end_date=None,
+        end_reason=None
+    )
+    db.add(new_occupancy)
+
+    # 10. Ghi nhận Audit Log
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="TRANSFER_APARTMENT",
+        entity_type="HOUSEHOLD",
+        entity_id=str(old_household.id),
+        old_value={
+            "household_id": old_household.id,
+            "household_code": old_household.household_code,
+            "apartment_id": apt.id,
+            "apartment_code": apt.code
+        },
+        new_value={
+            "household_id": new_household.id,
+            "household_code": new_household.household_code,
+            "apartment_id": apt.id,
+            "apartment_code": apt.code,
+            "effective_date": req.effective_date.isoformat()
+        },
+        reason=req.reason.strip() if req.reason else f"Chuyển nhượng căn hộ {apt.code} từ hộ {old_household.household_code} sang hộ {new_household.household_code}.",
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(new_household)
+
+    return build_household_schema(db, new_household)
 
 
 @router.put(

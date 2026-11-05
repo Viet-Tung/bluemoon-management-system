@@ -134,6 +134,15 @@ class HouseholdChangeHead(BaseModel):
     reason: Optional[str] = Field(default=None, description="Lý do thay đổi chủ hộ")
 
 
+class HouseholdTransferRequest(BaseModel):
+    """Schema chuyển nhượng căn hộ từ hộ này sang hộ mới (US-03, AC-03.1)."""
+    model_config = ConfigDict(extra="ignore")
+
+    new_household_id: int = Field(..., description="ID hộ gia đình mới nhận căn hộ")
+    effective_date: date = Field(..., description="Ngày có hiệu lực chuyển nhượng")
+    reason: Optional[str] = Field(default=None, description="Lý do chuyển nhượng")
+
+
 class Household(BaseModel):
     """Schema chi tiết hộ gia đình theo docs/openapi.yaml."""
     model_config = ConfigDict(from_attributes=True, extra="ignore")

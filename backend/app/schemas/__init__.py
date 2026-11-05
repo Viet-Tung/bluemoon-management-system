@@ -20,6 +20,7 @@ from app.schemas.common import Error, ErrorDetail, PageMeta
 from app.schemas.household import (
     Household,
     HouseholdChangeHead,
+    HouseholdTransferRequest,
     HouseholdCreate,
     HouseholdCreated,
     HouseholdDeactivate,
@@ -66,6 +67,7 @@ __all__ = [
     "HouseholdUpdate",
     "HouseholdDeactivate",
     "HouseholdChangeHead",
+    "HouseholdTransferRequest",
     "Household",
     "HouseholdCreated",
     "HouseholdPage",
