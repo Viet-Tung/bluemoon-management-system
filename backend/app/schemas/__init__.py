@@ -41,6 +41,11 @@ from app.schemas.household import (
     ResidentAccount,
     ResidentCreate,
 )
+from app.schemas.system import (
+    BackupJob,
+    BackupJobPage,
+    BackupStatus,
+)
 from app.schemas.user import (
     TempPassword,
     UserCreate,
@@ -93,4 +98,7 @@ __all__ = [
     "FeeTypeUpdate",
     "FeeType",
     "FeeTypePage",
+    "BackupJob",
+    "BackupJobPage",
+    "BackupStatus",
 ]

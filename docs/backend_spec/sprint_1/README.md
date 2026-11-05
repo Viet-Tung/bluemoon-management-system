@@ -20,6 +20,7 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 | `US-32_AUDIT_LOG_SPEC.md` | Đặc tả chi tiết cấp code cho US-32: Nhật ký thao tác (Audit Log) (`GET /audit-logs`), phân quyền `ADMIN`, bộ lọc đa tiêu chí, tính bất biến và 82 test cases black-box. | User Story US-32 (3 SP) |
 | `US-12_FEE_CATALOG_SPEC.md` | Đặc tả chi tiết cấp code cho US-12: Quản lý danh mục khoản thu bắt buộc (`GET /fee-types`, `POST /fee-types`, `PATCH /fee-types/{id}`), kiểm tra trùng mã `DUPLICATE_FEE_CODE`, bất biến mã và cách tính, ghi nhận AuditLog và 79 test cases black-box. | User Story US-12 (3 SP) |
 | `US-13_DEACTIVATE_FEE_SPEC.md` | Đặc tả chi tiết cấp code cho US-13: Ngừng áp dụng khoản thu (`POST /fee-types/{id}/deactivate`), cấm xóa vật lý No hard delete (`AC-13.1`), bất biến thuộc tính cấu hình, ghi nhận AuditLog và 70 test cases black-box. | User Story US-13 (2 SP) |
+| `US-45_SYSTEM_BACKUPS_SPEC.md` | Đặc tả chi tiết cấp code cho US-45: Sao lưu & Phục hồi CSDL (`POST /system/backups`, `GET /system/backups`), lập lịch tự động lúc 02:00 AM, lưu 30 ngày (AC-45.1), RTO $\le 2\text{h}$, phản hồi 202 Accepted, ghi nhận AuditLog và bộ test black-box. | User Story US-45 (3 SP) |
 
 ---
 
