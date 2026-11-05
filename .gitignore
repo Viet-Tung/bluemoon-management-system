@@ -40,3 +40,8 @@ Thumbs.db
 
 # AI Task Prompts
 AI_TASK*
+
+
+# Local debug database & helper scripts
+*.db
+backend/scripts/
