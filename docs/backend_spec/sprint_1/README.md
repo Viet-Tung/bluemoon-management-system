@@ -9,6 +9,7 @@ Thư mục này chứa các tài liệu kỹ thuật thu gọn, cô đọng đư
 | Tên tệp | Mô tả nội dung | Phạm vi |
 | :--- | :--- | :--- |
 | `SPRINT_1_BACKEND_SPEC.md` | Toàn bộ 12 User Stories Sprint 1: Chuẩn lỗi, 9 bảng CSDL cụm tối thiểu, 32 Endpoints, Ma trận phân quyền RBAC và DoD Checklist. | Toàn bộ Sprint 1 (40 SP) |
+| `SPRINT_1_API_TRACEABILITY_MATRIX.md` | Ma trận Traceability toàn diện 100% cho 32 API Sprint 1: Chi tiết từng luồng Request, Response, Error Codes snake_case theo chuẩn SSOT openapi.yaml, RBAC, ACID và Test Suites. | Nghiệm thu toàn bộ Sprint 1 (32 APIs) |
 | `US-01_APARTMENTS_HOUSEHOLDS_SPEC.md` | Đặc tả chi tiết cấp code cho US-01: Quản lý 7 endpoints Căn hộ & Hộ gia đình, tách biệt thực thể T-01/T-02, tự sinh tài khoản cư dân D-12, giao dịch ACID và 122 test cases black-box. | User Story US-01 (5 SP) |
 | `US-02_HOUSEHOLD_MANAGEMENT_SPEC.md` | Đặc tả chi tiết cấp code cho US-02: Quản lý thông tin liên hệ hộ, ngừng quản lý (No hard delete), đổi chủ hộ đại diện (AC-02.1), kiểm tra công nợ (DEBT_NOT_SETTLED), ghi nhận AuditLog và 98 test cases black-box. | User Story US-02 (3 SP) |
 | `US-03_APARTMENT_TRANSFER_SPEC.md` | Đặc tả chi tiết cấp code cho US-03: Chuyển nhượng căn hộ giữa các hộ, đóng/mở occupancy, kiểm tra công nợ (DEBT_NOT_SETTLED, APARTMENT_OCCUPIED, HOUSEHOLD_HAS_NO_APARTMENT), bảo toàn 100% lịch sử hóa đơn (AC-03.1), ghi nhận AuditLog và 84 test cases black-box. | User Story US-03 (3 SP) |
