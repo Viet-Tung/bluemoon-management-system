@@ -3,10 +3,125 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import text
 
 from app.core.security import create_access_token
-try:
-    from tests.us03_seed_data import SEED_DATA
-except ImportError:
-    from us03_seed_data import SEED_DATA
+def _build_us03_seed_data():
+    now_str = "2026-11-05 02:38:31"
+    apartments = []
+    for f in range(1, 6):
+        for u, area in enumerate([85.5, 72.0, 110.0, 65.0], start=1):
+            aid = (f - 1) * 4 + u
+            code = f"P.{f:02d}{u:02d}"
+            status = "INACTIVE" if (f == 5 and u == 4) else "ACTIVE"
+            apartments.append({
+                "id": aid, "code": code, "floor": f, "area_m2": area,
+                "status": status, "note": f"Căn hộ {code} tầng {f}",
+                "created_at": now_str, "updated_at": now_str,
+            })
+
+    households = []
+    for h in range(1, 17):
+        code = f"HO-{h:04d}"
+        status = "INACTIVE" if h == 16 else "ACTIVE"
+        households.append({
+            "id": h, "household_code": code, "status": status,
+            "contact_phone": f"091234{h:04d}",
+            "contact_email": f"ho_gia_dinh_{h}@bluemoon.vn",
+            "note": f"Hồ sơ hộ gia đình mã {code}",
+            "created_at": now_str, "updated_at": now_str,
+        })
+
+    apartment_occupancies = []
+    for h in range(1, 16):
+        apartment_occupancies.append({
+            "id": h, "apartment_id": h, "household_id": h,
+            "start_date": "2024-01-01", "end_date": None,
+            "end_reason": None, "created_at": now_str,
+        })
+    apartment_occupancies.append({
+        "id": 16, "apartment_id": 1, "household_id": 16,
+        "start_date": "2022-01-01", "end_date": "2023-12-31",
+        "end_reason": "Chuyển nhượng căn hộ cho chủ mới", "created_at": now_str,
+    })
+
+    residents = []
+    for h in range(1, 17):
+        residents.append({
+            "id": (h - 1) * 3 + 1, "household_id": h, "full_name": f"Chủ Hộ {h}",
+            "date_of_birth": "1980-04-15", "gender": "NAM",
+            "cccd": f"00108000{h:04d}", "phone": f"098111{h:04d}",
+            "email": f"chuhoid_{h}@bluemoon.vn", "relationship_to_head": "CHỦ HỘ",
+            "is_head": 1, "residence_status": "THUONG_TRU",
+            "status_effective_date": "2024-01-01", "status_reason": None,
+            "is_deleted": 0, "deleted_at": None, "deleted_by": None, "delete_reason": None,
+            "created_at": now_str, "updated_at": now_str,
+        })
+        residents.append({
+            "id": (h - 1) * 3 + 2, "household_id": h, "full_name": f"Thành Viên {h}",
+            "date_of_birth": "1985-08-20", "gender": "NU",
+            "cccd": f"00108500{h:04d}", "phone": f"098222{h:04d}", "email": None,
+            "relationship_to_head": "VỢ" if h % 2 == 1 else "CHỒNG",
+            "is_head": 0, "residence_status": "THUONG_TRU",
+            "status_effective_date": "2024-01-01", "status_reason": None,
+            "is_deleted": 0, "deleted_at": None, "deleted_by": None, "delete_reason": None,
+            "created_at": now_str, "updated_at": now_str,
+        })
+        residents.append({
+            "id": (h - 1) * 3 + 3, "household_id": h, "full_name": f"Con {h}",
+            "date_of_birth": "2018-09-02", "gender": "NAM",
+            "cccd": None, "phone": None, "email": None,
+            "relationship_to_head": "CON",
+            "is_head": 0, "residence_status": "THUONG_TRU",
+            "status_effective_date": "2024-01-01", "status_reason": None,
+            "is_deleted": 0, "deleted_at": None, "deleted_by": None, "delete_reason": None,
+            "created_at": now_str, "updated_at": now_str,
+        })
+
+    invoices = []
+    for h in range(1, 16):
+        fee = 1013500.0 if h % 2 == 1 else 2313500.0
+        disc = 119700.0 if h == 1 else 0.0
+        total = fee - disc
+        invoices.append({
+            "id": h, "billing_period_id": 1, "household_id": h, "apartment_id": h,
+            "apartment_area": 85.5, "fee_amount": fee, "discount_amount": disc,
+            "previous_debt": 0.0, "credit_applied": 0.0, "total_due": total,
+            "paid_amount": total, "status": "PAID",
+            "created_at": now_str, "updated_at": now_str,
+        })
+    for h in range(1, 16):
+        fee = 1013500.0 if h % 2 == 1 else 2313500.0
+        disc = 119700.0 if h == 1 else 0.0
+        prev_debt = 500000.0 if h in (3, 4) else 0.0
+        total = fee - disc + prev_debt
+        if h == 1:
+            paid = total
+            status = "PAID"
+        elif h == 2:
+            paid = 1000000.0
+            status = "PARTIAL"
+        elif h in (3, 4):
+            paid = 0.0
+            status = "UNPAID"
+        else:
+            paid = total
+            status = "PAID"
+        invoices.append({
+            "id": 15 + h, "billing_period_id": 2, "household_id": h, "apartment_id": h,
+            "apartment_area": 85.5, "fee_amount": fee, "discount_amount": disc,
+            "previous_debt": prev_debt, "credit_applied": 0.0, "total_due": total,
+            "paid_amount": paid, "status": status,
+            "created_at": now_str, "updated_at": now_str,
+        })
+
+    return {
+        "apartments": apartments,
+        "households": households,
+        "apartment_occupancies": apartment_occupancies,
+        "residents": residents,
+        "invoices": invoices,
+    }
+
+
+SEED_DATA = _build_us03_seed_data()
 
 
 # ==============================================================================
