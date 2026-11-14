@@ -1,71 +1,72 @@
-# 🗄️ Cơ Sở Dữ Liệu (Database) - Chung Cư BlueMoon
+# 🏢 BlueMoon Management System - Frontend Web Application
 
-Thư mục này chứa toàn bộ các file kịch bản SQL (`schema.sql`), dữ liệu mẫu (`seed_data.sql`) và kịch bản sao lưu tự động (`backup.sh`) để đảm bảo tính toàn vẹn dữ liệu tài chính và cư trú của chung cư BlueMoon.
-
----
-
-## 🛠️ 1. Ngôn ngữ & Hệ quản trị CSDL sử dụng
-
-* **Ngôn ngữ truy vấn:** **SQL (Structured Query Language)**.
-* **Hệ quản trị CSDL (DBMS):** **PostgreSQL 15+** (hoặc **MySQL 8.0+**).
-  * *Lý do lựa chọn:* Hỗ trợ giao dịch **ACID** tuyệt đối (`NFR-008`), đảm bảo khi 20 người dùng truy cập đồng thời đầu tháng (`NFR-010`) không bao giờ xảy ra lỗi trừ tiền hai lần hoặc trùng số biên lai.
-  * Hỗ trợ tìm kiếm tiếng Việt không phân biệt dấu cực nhanh ($\le 1\text{s}$ cho 5.000 nhân khẩu theo `NFR-005`) nhờ tiện ích `unaccent` (PostgreSQL) hoặc Collation `utf8mb4_0900_ai_ci` (MySQL).
+> **Dự án:** Phần mềm Quản lý Cư dân và Thu phí Chung cư BlueMoon (Quy mô ~1.000 căn hộ, ~5.000 nhân khẩu)  
+> **Đơn vị thực hiện:** Nhóm 18 - CNTT&TT, ĐHBK Hà Nội (SoICT / HUST)  
+> **Lập trình viên Front-End:** `TV3: Nguyễn Thanh Hải` & `TV4: Lê Nguyễn Nhật Huy`  
+> **Tiêu chuẩn thiết kế:** Bộ quy chuẩn UI/UX từ `evondevKit / ui-ux`
 
 ---
 
-## 📂 2. Danh sách các file cần có trong thư mục `database/`
+## 🛠️ 1. Công nghệ sử dụng (Tech Stack)
 
-```text
-database/
-├── 01_schema.sql                    # Lệnh CREATE TABLE cho toàn bộ 14 bảng + Khóa ngoại + Index
-├── 02_seed_initial_data.sql         # Tạo sẵn 5 tài khoản mẫu (Admin, BQT, Kế toán, Thủ quỹ, Cư dân) & các khoản phí cơ bản
-├── 03_seed_1000_households.py       # Script Python sinh tự động 1.000 căn hộ & 5.000 nhân khẩu để test hiệu năng (NFR-005)
-├── 04_backup_restore.sh             # Script sao lưu CSDL tự động lúc 02:00 sáng và giữ trong 30 ngày (US-45, NFR-003)
-├── erd_diagram.png                  # Ảnh sơ đồ thực thể liên kết (ERD) để chèn vào báo cáo kỹ thuật
-└── README.md                        # Tài liệu hướng dẫn này
+* **Thư viện giao diện chính:** **React 19 + TypeScript**
+* **Build tool & Dev Server:** **Vite 8** (Chạy tại port 3000, cấu hình proxy tự động `/api` sang Backend port 8000)
+* **Styling & Design Tokens:** **Tailwind CSS v4** + Hệ thống Token chuẩn `evondev UI/UX` (BlueMoon Palette: `#1E40AF` Primary, Slate Neutrals, Semantic Badges)
+* **Routing:** **React Router v7** (Cơ chế Role-Based Private Route)
+* **Iconography:** **Lucide React** (Bộ biểu tượng hiện đại, đồng bộ)
+* **Quản lý State & Toast:** React Context API (`AuthContext`, `ToastContext`)
+
+---
+
+## 🧭 2. Danh mục Phân hệ & Màn hình giao diện đã hoàn thiện (100% Khớp Backlog)
+
+| Nhóm chức năng | Đường dẫn (Route) | User Story ánh xạ | Vai trò truy cập | Đặc tả tính năng chính |
+| :--- | :--- | :--- | :--- | :--- |
+| **Xác thực & Bảo mật** | `/login` | `US-28`, `US-44` | Mọi người dùng | Đăng nhập JWT, đếm sai 5 lần tự khóa 15m (`ACCOUNT_LOCKED`), phím tắt điền nhanh 4 vai trò demo |
+| **Đổi mật khẩu** | Modal `/change-password` | `US-29`, `AC-29.1` | Mọi người dùng | Bắt buộc đổi lần đầu (`must_change_password`), kiểm tra độ mạnh $\ge 8$ ký tự, chữ hoa, thường, số |
+| **Dashboard Điều hành** | `/dashboard` | `US-43`, `US-09` | Admin, Kế toán, Thủ quỹ | KPI tổng quan tài chính, biểu đồ tiến độ thu, cảnh báo tạm trú/vắng sắp hết hạn $\le 15$ ngày |
+| **Căn hộ & Hộ gia đình** | `/apartments` | `US-01`, `US-03` | Admin, Kế toán | Danh sách 1.000 căn, lọc theo tầng, thêm căn hộ mới, chuyển nhượng căn hộ giữ nguyên lịch sử tài chính |
+| **Nhân khẩu & Cư trú** | `/residents` | `US-05..US-10` | Admin, Kế toán | Thêm nhân khẩu vào hộ, miễn CCCD cho trẻ $< 14$ tuổi (`AC-05.3`), quản lý Thường trú/Tạm trú/Tạm vắng |
+| **Quầy Thu Ngân** | `/cashier` | `US-18`, `US-19`, `US-20` | Thủ quỹ, Admin | Giao diện Split-Screen tìm kiếm $\le 1\text{s}$, gạch nợ từng phần, nộp thừa tự vào số dư có credit, in biên lai |
+| **Biểu phí & Đơn giá** | `/fee-catalog` | `US-12, 13, 14, 15` | Kế toán, Admin | Khoản thu theo $m^2$, xe, công tơ; ngừng áp dụng No hard delete (`AC-13.1`), chính sách miễn giảm theo hộ |
+| **Kỳ thu & Tính phí** | `/billing` | `US-17`, `US-47` | Kế toán, Admin | Khởi tạo kỳ thu mới, động cơ tính phí tự động 1.000 hộ trong $\le 10\text{s}$, xuất giấy báo nộp phí hàng loạt |
+| **Theo dõi Công nợ** | `/debts` | `US-21`, `US-22` | Kế toán, Admin | Bảng theo dõi nợ theo kỳ, chức năng hủy biên lai sai sót (bắt buộc nhập lý do, hoàn trả nợ, ghi Audit Log) |
+| **Quỹ Vận Động Tự Nguyện**| `/donations` | `US-40, 41, 42` | Thủ quỹ, Kế toán, Admin | Tạo đợt vận động (Vì người nghèo, Khuyến học), thu tiền in phiếu QT, bảo mật mức đóng, báo cáo mẫu Phường |
+| **Cổng Cư Dân - Hồ sơ** | `/portal/household` | `US-33`, `US-34` | Cư dân (RESIDENT) | Tra cứu hồ sơ căn hộ, danh sách thành viên, gửi đề nghị sửa đổi thông tin đính kèm ảnh minh chứng |
+| **Cổng Cư Dân - Tài chính**| `/portal/finances` | `US-35` | Cư dân (RESIDENT) | Tra cứu hóa đơn chi tiết từng khoản, số dư có hiện tại, lịch sử thanh toán và tải/in biên lai điện tử |
+| **Duyệt Đề Nghị Cư Dân** | `/admin/change-requests`| `US-34` | Ban Quản Trị | Xem ảnh minh chứng, duyệt yêu cầu cập nhật DB tự động hoặc từ chối (bắt buộc nhập lý do - `AC-34.3`) |
+| **Quản trị Tài khoản** | `/admin/users` | `US-30`, `US-31` | Ban Quản Trị | Danh sách tài khoản nhân sự/cư dân, khóa/mở khóa tức thì, phân 4 quyền RBAC chuẩn |
+| **Nhật ký Audit Log** | `/admin/audit-logs` | `US-32` | Ban Quản Trị | Xem lịch sử kiểm toán bất biến (Người dùng, hành động, thời gian, IP, xem chi tiết JSON Old/New) |
+| **Sao Lưu CSDL** | `/admin/backups` | `US-45` | Ban Quản Trị | Lịch sao lưu tự động 02:00 sáng hàng ngày (30 ngày, RTO $\le 2\text{h}$), kích hoạt sao lưu thủ công |
+
+---
+
+## 🎨 3. Mẫu Biên Lai Điện Tử Chuẩn (`DOC-02` - US-20)
+
+Hệ thống tích hợp sẵn component in ấn [WatermarkReceipt.tsx](src/components/common/WatermarkReceipt.tsx):
+- Sinh mã biên lai tự tăng duy nhất dạng `BL00000001`.
+- Khi in lại từ lần thứ 2 trở đi (`print_count > 1`): **Tự động đóng dấu chéo chữ mờ "BẢN SAO"** theo tiêu chuẩn kế toán (`AC-20.2`).
+- Khi giao dịch bị hủy (`status === 'CANCELLED'`): **Đóng dấu chữ đỏ "ĐÃ HỦY GIAO DỊCH"** kèm hiển thị lý do hủy (`AC-22.1`).
+
+---
+
+## 🚀 4. Hướng dẫn khởi chạy ứng dụng
+
+```bash
+# 1. Di chuyển vào thư mục frontend
+cd frontend
+
+# 2. Cài đặt các gói phụ thuộc (nếu chưa cài)
+npm install
+
+# 3. Chạy môi trường phát triển (Development Server)
+npm run dev
 ```
 
----
+Truy cập ứng dụng tại: **`http://localhost:3000`**
 
-## 🧱 3. Danh sách 14 Bảng dữ liệu cốt lõi trong `01_schema.sql`
-
-### Nhóm 1: Phân quyền & Nhật ký hệ thống 
-1. **`roles`**: Danh mục 5 vai trò (`ADMIN`, `BQT`, `ACCOUNTANT`, `CASHIER`, `RESIDENT`).
-2. **`users`**: Tài khoản đăng nhập (`id`, `username`, `password_hash`, `role_id`, `household_id`, `failed_attempts`, `locked_until`, `is_active`).
-3. **`audit_logs`**: Nhật ký thao tác bất biến (`id`, `user_id`, `action`, `table_name`, `record_id`, `old_data`, `new_data`, `created_at`). *Lưu ý: Không cấp quyền `UPDATE/DELETE` trên bảng này (`AC-32.2`).*
-
-### Nhóm 2: Căn hộ, Hộ cư trú & Nhân khẩu 
-4. **`apartments`**: Đơn vị tài sản vật lý (`id`, `apartment_code` UNIQUE, `floor`, `area_m2` $> 0$, `address`, `status`).
-5. **`households`**: Hộ gia đình đang cư trú tại căn hộ (`id`, `apartment_id`, `owner_name`, `phone`, `credit_balance` DEFAULT 0, `move_in_date`, `move_out_date`, `status`).
-6. **`residents`**: Nhân khẩu trong hộ (`id`, `household_id`, `full_name`, `dob`, `gender`, `cccd` UNIQUE NULLABLE, `missing_cccd_reason`, `relation_to_owner`, `residency_type`, `is_active`).
-7. **`resident_movements`**: Lịch sử biến động nhân khẩu (`id`, `resident_id`, `movement_type`: Chuyển đến / Chuyển đi / Sinh / Mất, `effective_date`, `note`).
-8. **`temp_residencies`**: Hồ sơ Tạm trú / Tạm vắng (`id`, `resident_id`, `type`, `start_date`, `end_date`, `status`).
-
-### Nhóm 3: Danh mục Khoản thu & Quỹ tự nguyện 
-9. **`fee_categories`**: Danh mục khoản thu (`id`, `fee_code`, `fee_name`, `is_mandatory`, `calc_method`: `PER_M2` / `PER_PERSON` / `FIXED`, `billing_cycle`, `is_active`).
-10. **`fee_rates`**: Lịch sử đơn giá (`id`, `fee_category_id`, `unit_price`, `effective_from`, `effective_to`).
-11. **`household_discounts`**: Chính sách miễn giảm theo hộ (`id`, `household_id`, `fee_category_id`, `discount_percent`, `reason`, `valid_from`, `valid_to`).
-12. **`voluntary_campaigns` & `voluntary_donations`**: Đợt vận động đóng góp tự nguyện và số tiền ủng hộ của từng hộ.
-
-### Nhóm 4: Kỳ thu, Hóa đơn, Biên lai & Cổng cư dân 
-13. **`billing_periods` & `invoices` & `invoice_items`**: Kỳ thu hàng tháng, tổng công nợ từng hộ (đã cộng nợ cũ và trừ `credit_balance`) và chi tiết từng dòng phí ($m^2 \times \text{đơn giá}$).
-14. **`transactions`, `receipts` & `edit_requests`**: Giao dịch nộp tiền, biên lai điện tử (`receipt_no` UNIQUE tăng dần, `print_count`) và yêu cầu chỉnh sửa thông tin từ cư dân (`Chờ duyệt` / `Đã xử lý` / `Từ chối`).
-
----
-
-## ⚡ 4. Các chỉ mục (Indexes) bắt buộc phải tạo để đạt hiệu năng $\le 1\text{s}$
-
-Trong file `01_schema.sql`, bắt buộc phải có các dòng đánh Index sau để đáp ứng `US-18`, `US-23` và `NFR-005`:
-
-```sql
--- Tăng tốc tìm kiếm căn hộ và chủ hộ tại quầy thu tiền (<= 1 giây)
-CREATE UNIQUE INDEX idx_apartments_code ON apartments(apartment_code);
-CREATE INDEX idx_households_owner ON households(owner_name);
-
--- Tăng tốc tìm kiếm nhân khẩu theo họ tên và CCCD
-CREATE INDEX idx_residents_name ON residents(full_name);
-CREATE UNIQUE INDEX idx_residents_cccd ON residents(cccd) WHERE cccd IS NOT NULL;
-
--- Tăng tốc thống kê công nợ theo kỳ thu và trạng thái thanh toán
-CREATE INDEX idx_invoices_period_status ON invoices(billing_period_id, payment_status);
-```
+### Tài khoản thử nghiệm mặc định (Có sẵn nút bấm chuyển nhanh trên Header):
+- **Trưởng BQT (Admin):** `admin_bqt` / `BlueMoon@2026`
+- **Kế toán:** `ketoan_01` / `BlueMoon@2026`
+- **Thủ quỹ:** `thuquy_01` / `BlueMoon@2026`
+- **Cư dân (Căn B1204):** `cudan_b1204` / `BlueMoon@2026`
