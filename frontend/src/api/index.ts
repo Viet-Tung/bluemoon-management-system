@@ -232,13 +232,39 @@ export class ApiClient {
 
   static async addResident(data: Partial<Resident>): Promise<Resident> {
     const residents = getStorage<Resident[]>('residents', INITIAL_RESIDENTS);
+    const normalizedCCCD = data.cccd?.trim();
+
+    // Kiểm tra CCCD trùng
+    if (normalizedCCCD) {
+      const duplicate = residents.find(
+        (r) =>
+          !r.is_deleted &&
+          r.cccd?.trim() === normalizedCCCD
+      );
+
+      if (duplicate) {
+        const households = getStorage<Household[]>(
+          'households',
+          INITIAL_HOUSEHOLDS
+        );
+
+        const household = households.find(
+          (h) => h.id === duplicate.household_id
+        );
+
+        throw new Error(
+          `CCCD đã tồn tại tại hộ ${household?.household_code ?? duplicate.household_id}, người sử dụng: ${duplicate.full_name}.`
+        );
+      }
+    }
+
     const newR: Resident = {
       id: residents.length + 1,
       household_id: data.household_id || 1,
       full_name: data.full_name || '',
       date_of_birth: data.date_of_birth || '2000-01-01',
       gender: data.gender || 'NAM',
-      cccd: data.cccd,
+      cccd: normalizedCCCD || undefined,
       phone: data.phone,
       relationship_to_head: data.relationship_to_head || 'Thành viên',
       is_head: data.is_head || false,

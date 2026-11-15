@@ -46,8 +46,21 @@ export const ResidentsPage: React.FC = () => {
   };
 
   const calculateAge = (dobString: string) => {
-    const birthYear = new Date(dobString).getFullYear();
-    return new Date().getFullYear() - birthYear;
+    if (!dobString) return null;
+
+    const [year, month, day] = dobString.split('-').map(Number);
+    const birthDate = new Date(year, month - 1, day);
+    const today = new Date();
+
+    if (!year || !month || !day ||birthDate.getFullYear() !== year ||birthDate.getMonth() !== month - 1 ||birthDate.getDate() !== day ||birthDate > today)
+       return null;
+
+    let age = today.getFullYear() - year;
+
+    if ( today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day))
+       age--;
+
+    return age;
   };
 
   const handleAddResident = async (e: React.FormEvent) => {
@@ -55,17 +68,38 @@ export const ResidentsPage: React.FC = () => {
 
     const age = calculateAge(dob);
     // AC-05.3: Trẻ em dưới 14 tuổi cho phép để trống CCCD
+    if (age == null) {
+      error('Ngày sinh không hợp lệ.');
+      return;
+    }
     if (age >= 14 && !cccd) {
       error('Nhân khẩu từ 14 tuổi trở lên bắt buộc phải nhập số CCCD (AC-05.3).');
       return;
     }
+    // AC-05.2: Báo trùng CCCD
+    const normalizedCCCD = cccd.trim();
 
+    if (normalizedCCCD) {
+      const duplicate = residents.find(
+        (r) =>
+          !r.is_deleted &&
+          r.cccd?.trim() === normalizedCCCD
+      );
+
+      if (duplicate) {
+        error(
+          `CCCD đã tồn tại! Số CCCD này đang được sử dụng bởi ${duplicate.full_name} (Hộ ID: ${duplicate.household_id}).`
+        );
+
+        return;
+      }
+    }
     try {
       await ApiClient.addResident({
         full_name: fullName,
         date_of_birth: dob,
         gender,
-        cccd: cccd || undefined,
+        cccd: normalizedCCCD || undefined,
         phone,
         relationship_to_head: relationship,
         is_head: isHead,
