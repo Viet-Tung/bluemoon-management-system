@@ -1,5 +1,4 @@
 # PRODUCT BACKLOG & SPRINT PLAN - DỰ ÁN CHUNG CƯ BLUEMOON
-*(Đặc tả chuẩn hóa 100% theo tài liệu gốc Plan.pdf - Kế hoạch dự án BlueMoon Nhóm 18)*
 
 **Tên dự án:** Xây dựng phần mềm quản lý và thu phí ở chung cư Blue Moon  
 **Đơn vị thực hiện:** Nhóm 18 - Trường Công nghệ Thông tin và Truyền thông, ĐHBK Hà Nội  
@@ -93,26 +92,24 @@ Dự án áp dụng mô hình cộng tác **Peer-to-Peer (Bình đẳng / Không
 
 ---
 
-## 3. KẾ HOẠCH PHÂN BỔ 4 SPRINTS (CHUẨN PLAN.PDF - MỤC II.4)
+## 3. KẾ HOẠCH PHÂN BỔ 4 SPRINTS
 
-Khung phát triển phần mềm (Hạng mục `2.0` trên WBS và Gantt Chart) diễn ra từ **13/10/2026 đến 04/12/2026** (39 ngày làm việc), được chia thành **4 Sprints** nối tiếp nhau (**tổng cộng 47 User Stories – 150 Story Points**), tiếp nối bằng giai đoạn Kiểm thử hệ thống & Nghiệm thu (`3.0` từ **30/11 đến 18/12/2026**) và Triển khai & Đóng dự án (`4.0` & `1.3` đến **25/12/2026**):
-
-* **Sprint 1 (Tuần 3 – Tuần 5 | 13/10/2026 – 30/10/2026): Kiến trúc CSDL, Bảo mật, Đăng nhập & Hồ sơ Căn hộ/Hộ gia đình**
+* **Sprint 1 (Tuần 3 – Tuần 5 | 02/11/2026 – 15/11/2026): Kiến trúc CSDL, Bảo mật, Đăng nhập & Hồ sơ Căn hộ/Hộ gia đình**
   * **Mục tiêu:** Khởi tạo CSDL & Docker, lập lịch sao lưu tự động, đảm bảo chuẩn ACID (`2.1.1`), hoàn thành phân hệ Đăng nhập/Mật khẩu (`2.1.2`), Hồ sơ Căn hộ/Hộ gia đình/Chuyển nhượng (`2.2.1`), khởi chạy phân quyền RBAC (`2.1.3`) và Danh mục khoản thu (`2.3.1`).
   * **Hạng mục WBS:** `2.1.1`, `2.1.2`, `2.2.1` *(và khởi đầu `2.1.3`, `2.2.3`, `2.3.1`)*.
   * **User Stories (12 US – 40 SP):** `US-44`, `US-45`, `US-46`, `US-28`, `US-29`, `US-01`, `US-02`, `US-03`, `US-30`, `US-31`, `US-12`, `US-13`.
 
-* **Sprint 2 (Tuần 6 – Tuần 7 | 02/11/2026 – 13/11/2026): Phân quyền RBAC, Audit Log, Nhân khẩu, Phương tiện, Điện/Nước & Động cơ tính phí tự động**
+* **Sprint 2 (Tuần 6 – Tuần 7 | 16/11/2026 – 30/11/2026): Phân quyền RBAC, Audit Log, Nhân khẩu, Phương tiện, Điện/Nước & Động cơ tính phí tự động**
   * **Mục tiêu:** Hoàn tất RBAC (`2.1.3`), Nhật ký thao tác Audit Log (`2.1.4` - hoàn thành ngày 11/11 để sẵn sàng cho nghiệp vụ Hủy biên lai ở Sprint 3), Quản lý nhân khẩu (`2.2.3`), Import Excel (`2.2.2`), Đơn giá & Miễn giảm (`2.3.1`), Quản lý phương tiện & tính phí gửi xe (`2.3.7`), Nhập chỉ số & tính phí điện/nước (`2.3.8` - phần tính phí), Động cơ tạo kỳ thu & tính phí tự động (`2.3.2`) và Tìm kiếm đa tiêu chí $\le 1\text{s}$ (`2.4.1`).
   * **Hạng mục WBS:** `2.1.3`, `2.1.4`, `2.2.2`, `2.2.3`, `2.3.1`, `2.3.2`, `2.3.7`, `2.3.8` (phần chỉ số), `2.4.1`.
   * **User Stories (13 US – 41 SP):** `US-14`, `US-15`, `US-16`, `US-32`, `US-05`, `US-06`, `US-04`, `US-36`, `US-37`, `US-38`, `US-17`, `US-47`, `US-23`.
 
-* **Sprint 3 (Tuần 8 – Tuần 9 | 16/11/2026 – 27/11/2026): Biến động cư trú, Quầy thu tiền, Thu hộ Điện/Nước/Internet, Quỹ tự nguyện, Biên lai & Cổng cư dân đợt 1**
+* **Sprint 3 (Tuần 8 – Tuần 9 | 30/11/2026 – 07/12/2026): Biến động cư trú, Quầy thu tiền, Thu hộ Điện/Nước/Internet, Quỹ tự nguyện, Biên lai & Cổng cư dân đợt 1**
   * **Mục tiêu:** Hoàn thiện nghiệp vụ Biến động cư trú & Tạm trú/Tạm vắng (`2.2.4`), Kết xuất báo cáo Công an (`2.2.5`), Cổng cư dân tra cứu hộ & đề nghị chỉnh sửa (`2.2.6`), Quầy thu tiền & Gạch nợ tự động (`2.3.3`), Thu hộ & đối soát điện/nước/internet (`2.3.8` - phần thu hộ), Tạo đợt & ghi nhận Quỹ vận động tự nguyện (`2.3.6`), Quản lý công nợ & Hủy giao dịch có ghi Audit Log (`2.3.5`) và Biên lai điện tử (`2.3.4`), sẵn sàng cho **First UAT (`3.3`: 30/11 – 02/12/2026)**.
   * **Hạng mục WBS:** `2.2.4`, `2.2.5`, `2.2.6`, `2.3.3`, `2.3.4`, `2.3.5`, `2.3.6` (phần thu quỹ), `2.3.8` (phần thu hộ & đối soát).
   * **User Stories (15 US – 46 SP):** `US-07`, `US-08`, `US-09`, `US-10`, `US-11`, `US-33`, `US-34`, `US-18`, `US-19`, `US-39`, `US-20`, `US-21`, `US-22`, `US-40`, `US-41`.
 
-* **Sprint 4 (Tuần 10 | 26/11/2026 – 04/12/2026) & Pha Kiểm thử/Triển khai (Tuần 10 – Tuần 13 | 30/11/2026 – 25/12/2026): Báo cáo tài chính, Quyết toán quỹ, Dashboard BQT, Cổng công nợ cư dân, SIT, ACID & UAT**
+* **Sprint 4 (Tuần 10 | 08/12/2026 – 14/12/2026) & Pha Kiểm thử/Triển khai (Tuần 10 – Tuần 13 | 30/11/2026 – 25/12/2026): Báo cáo tài chính, Quyết toán quỹ, Dashboard BQT, Cổng công nợ cư dân, SIT, ACID & UAT**
   * **Mục tiêu phát triển (Hoàn tất 04/12):** Hoàn thiện Báo cáo & Thống kê tài chính bóc tách các khoản thu (`2.4.2`), Báo cáo quyết toán quỹ tự nguyện theo mẫu phường (`2.3.6` - phần báo cáo), Thống kê nhân khẩu & Dashboard điều hành BQT (`2.4.3`) và Cổng cư dân tra cứu công nợ & lịch sử đóng phí (`2.4.4`).
   * **Mục tiêu Kiểm thử & Bàn giao (30/11 – 25/12):**
     * Kiểm thử chấp nhận người dùng đợt 1 – **First UAT (`3.3`)**: `30/11 – 02/12/2026`.
