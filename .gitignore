@@ -45,3 +45,8 @@ AI_TASK*
 # Local debug database & helper scripts
 *.db
 backend/scripts/
+
+# Environment files
+.env
+*.env
+backend/.env
