@@ -130,12 +130,6 @@ export const LoginPage: React.FC = () => {
             Đăng nhập hệ thống
           </Button>
         </form>
-
-        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-          <p className="text-[11px] text-slate-400">
-            Hệ thống xác thực qua API Backend BlueMoon (Sprint 1). Mật khẩu được mã hóa an toàn.
-          </p>
-        </div>
       </div>
     </div>
   );
