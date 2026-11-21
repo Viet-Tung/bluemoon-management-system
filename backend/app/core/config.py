@@ -30,7 +30,7 @@ class Settings:
     # Database Settings (PostgreSQL 15+)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:5432/bluemoon_db",
+        "postgresql+psycopg://bluemoon_app@localhost:5432/bluemoon_db",
     )
     DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))
