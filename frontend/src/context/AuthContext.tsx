@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, RoleCode } from '../types';
 import { ApiClient } from '../api';
-import { INITIAL_USERS } from '../api/mockData';
 
 interface AuthContextType {
   user: User | null;
@@ -9,34 +8,42 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasRole: (...roles: RoleCode[]) => boolean;
-  switchDemoUser: (roleCode: RoleCode) => void;
   updateUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('bluemoon_current_user');
-      if (saved) return JSON.parse(saved);
-      // Default initial user is Admin for convenient demo
-      return INITIAL_USERS[0];
-    } catch {
-      return INITIAL_USERS[0];
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Validate session on initial load or page refresh
+  const refreshUser = useCallback(async () => {
+    const token = ApiClient.getToken();
+    if (!token) {
+      setUser(null);
+      setIsLoading(false);
+      return;
     }
-  });
-  const [isLoading, setIsLoading] = useState(false);
+
+    try {
+      const currentUser = await ApiClient.getMe();
+      setUser(currentUser);
+    } catch {
+      // Token is invalid, expired, or backend rejected
+      ApiClient.setToken(null);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('bluemoon_current_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('bluemoon_current_user');
-    }
-  }, [user]);
+    refreshUser();
+  }, [refreshUser]);
 
   const login = async (username: string, password: string) => {
     setIsLoading(true);
@@ -48,22 +55,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    ApiClient.setToken(null);
-    setUser(null);
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await ApiClient.logout();
+    } catch {
+      // Swallowed: if server offline, still clear local token
+    } finally {
+      ApiClient.setToken(null);
+      setUser(null);
+      setIsLoading(false);
+    }
   };
 
   const hasRole = (...roles: RoleCode[]) => {
     if (!user || !user.role) return false;
     return roles.includes(user.role.code);
-  };
-
-  const switchDemoUser = (roleCode: RoleCode) => {
-    const demo = INITIAL_USERS.find((u) => u.role.code === roleCode);
-    if (demo) {
-      setUser(demo);
-      ApiClient.setToken(`demo-token-${demo.id}`);
-    }
   };
 
   const updateUser = (updated: User) => {
@@ -80,8 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         hasRole,
-        switchDemoUser,
         updateUser,
+        refreshUser,
       }}
     >
       {children}
