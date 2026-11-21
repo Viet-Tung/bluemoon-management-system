@@ -42,8 +42,12 @@ Thumbs.db
 AI_TASK*
 
 
-# Local debug database & helper scripts
+# Local debug database, backups & helper scripts
 *.db
+*.dump
+*.sql.gz
+backups/
+backend/backups/
 backend/scripts/
 
 # Environment files

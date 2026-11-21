@@ -1,8 +1,12 @@
 import os
 from pathlib import Path
 from typing import List
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# Tự động nạp .env ở thư mục gốc dự án (ưu tiên biến môi trường hệ thống nếu đã set)
+load_dotenv(BASE_DIR.parent / ".env", override=False)
+load_dotenv(BASE_DIR / ".env", override=False)
 
 
 class Settings:
@@ -30,7 +34,7 @@ class Settings:
     # Database Settings (PostgreSQL 15+)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg://bluemoon_app@localhost:5432/bluemoon_db",
+        "postgresql+psycopg://bluemoon_app@127.0.0.1:5432/bluemoon_db",
     )
     DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.common import PageMeta
 
@@ -20,6 +20,14 @@ class AuditLogResponse(BaseModel):
     ip_address: Optional[str] = Field(default=None, description="Địa chỉ IP của client")
     user_agent: Optional[str] = Field(default=None, description="Thông tin User-Agent của client")
     created_at: datetime = Field(..., description="Thời điểm ghi nhận thao tác")
+
+    @field_validator("ip_address", mode="before")
+    @classmethod
+    def coerce_ip_to_str(cls, v: Any) -> Optional[str]:
+        """Convert PostgreSQL INET/ipaddress objects into plain strings."""
+        if v is None:
+            return None
+        return str(v)
 
 
 class AuditLogPage(PageMeta):

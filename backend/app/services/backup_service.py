@@ -1,8 +1,14 @@
 from datetime import datetime, timedelta, timezone
+import os
+from pathlib import Path
+import subprocess
 from typing import Any, Dict, Optional
+from urllib.parse import unquote, urlparse
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.database import SessionLocal
 from app.models.user import BackupJob
 
 
@@ -87,4 +93,79 @@ def run_scheduled_backup(db: Session) -> BackupJob:
     db.commit()
     db.refresh(job)
     return job
+
+
+def execute_pg_backup_job(job_id: int) -> None:
+    """
+    Thực thi tiến trình pg_dump thực tế chạy nền cho BackupJob trên PostgreSQL.
+    Lưu file .dump vào settings.BACKUP_DIR và cập nhật status SUCCEEDED / FAILED.
+    """
+    db = SessionLocal()
+    try:
+        job = db.scalar(select(BackupJob).where(BackupJob.id == job_id))
+        if not job:
+            return
+
+        job.status = "RUNNING"
+        db.commit()
+
+        parsed = urlparse(settings.DATABASE_URL)
+        host = parsed.hostname or "127.0.0.1"
+        port = str(parsed.port or 5432)
+        username = unquote(parsed.username or "postgres")
+        password = unquote(parsed.password or "")
+        dbname = parsed.path.lstrip("/") or "bluemoon_db"
+
+        backup_dir = Path(settings.BACKUP_DIR)
+        if not backup_dir.is_absolute():
+            backup_dir = (Path(settings.BACKUP_DIR) if Path("app").exists() else Path(__file__).resolve().parent.parent.parent / settings.BACKUP_DIR)
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        output_file = (backup_dir / f"bluemoon_backup_{job.id}_{now_str}.dump").resolve()
+
+        env = os.environ.copy()
+        if password:
+            env["PGPASSWORD"] = password
+
+        cmd = [
+            settings.PG_DUMP_PATH,
+            "-h", host,
+            "-p", port,
+            "-U", username,
+            "-F", "c",
+            "-f", str(output_file),
+            dbname,
+        ]
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=300)
+
+        if proc.returncode == 0 and output_file.exists():
+            job.status = "SUCCEEDED"
+            job.file_path = str(output_file)
+            job.size_bytes = output_file.stat().st_size
+            job.error_message = None
+        else:
+            job.status = "FAILED"
+            err = (proc.stderr or proc.stdout or f"pg_dump exited with code {proc.returncode}").strip()
+            job.error_message = err[:1000]
+
+        job.finished_at = datetime.now(timezone.utc)
+        db.commit()
+    except FileNotFoundError:
+        job = db.scalar(select(BackupJob).where(BackupJob.id == job_id))
+        if job:
+            job.status = "FAILED"
+            job.error_message = f"Không tìm thấy công cụ sao lưu '{settings.PG_DUMP_PATH}'. Hãy cài PostgreSQL Client Tools hoặc cấu hình PG_DUMP_PATH."
+            job.finished_at = datetime.now(timezone.utc)
+            db.commit()
+    except Exception as exc:
+        db.rollback()
+        job = db.scalar(select(BackupJob).where(BackupJob.id == job_id))
+        if job:
+            job.status = "FAILED"
+            job.error_message = str(exc)[:1000]
+            job.finished_at = datetime.now(timezone.utc)
+            db.commit()
+    finally:
+        db.close()
 
