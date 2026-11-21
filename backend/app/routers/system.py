@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, require_roles
 from app.models.user import AuditLog, BackupJob as BackupJobModel, User
 from app.schemas.system import BackupJob, BackupJobPage, BackupStatus
+from app.services.backup_service import execute_pg_backup_job
 
 router = APIRouter(tags=["System"])
 
@@ -21,6 +22,7 @@ router = APIRouter(tags=["System"])
 )
 def create_backup(
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_roles("ADMIN")),
     db: Session = Depends(get_db),
 ) -> BackupJob:
@@ -49,6 +51,11 @@ def create_backup(
     db.add(audit)
     db.commit()
     db.refresh(new_job)
+
+    # Kích hoạt tiến trình pg_dump chạy nền khi chạy trên PostgreSQL thật
+    bind = db.get_bind()
+    if bind is not None and bind.dialect.name == "postgresql":
+        background_tasks.add_task(execute_pg_backup_job, new_job.id)
 
     return BackupJob.model_validate(new_job)
 

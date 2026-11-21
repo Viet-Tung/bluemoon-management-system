@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
@@ -62,7 +63,10 @@ class AuditLog(Base):
     old_value: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     new_value: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        INET().with_variant(String(50), "sqlite"),
+        nullable=True,
+    )
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
