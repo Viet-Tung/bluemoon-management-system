@@ -2,57 +2,26 @@ import {
   Apartment,
   AuditLog,
   BackupJob,
-  BillingPeriod,
-  Donation,
-  DonationCampaign,
-  FeeExemption,
   FeeType,
   Household,
-  Invoice,
-  Payment,
-  ProfileChangeRequest,
-  Resident,
-  TemporaryStay,
+  HouseholdCreated,
+  Page,
+  Role,
   User,
+  UserWithTempPassword,
 } from '../types';
-import {
-  INITIAL_APARTMENTS,
-  INITIAL_AUDIT_LOGS,
-  INITIAL_BACKUP_JOBS,
-  INITIAL_BILLING_PERIODS,
-  INITIAL_CHANGE_REQUESTS,
-  INITIAL_DONATION_CAMPAIGNS,
-  INITIAL_DONATIONS,
-  INITIAL_EXPIRING_STAYS,
-  INITIAL_FEE_EXEMPTIONS,
-  INITIAL_FEE_TYPES,
-  INITIAL_HOUSEHOLDS,
-  INITIAL_INVOICES,
-  INITIAL_PAYMENTS,
-  INITIAL_RESIDENTS,
-  INITIAL_USERS,
-} from './mockData';
 
-const STORAGE_PREFIX = 'bluemoon_';
+export class ApiError extends Error {
+  code: string;
+  status: number;
+  details: any[];
 
-function getStorage<T>(key: string, initial: T): T {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + key);
-    if (!raw) {
-      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(initial));
-      return initial;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return initial;
-  }
-}
-
-function setStorage<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(data));
-  } catch (err) {
-    console.error('Failed to save to localStorage', err);
+  constructor(code: string, message: string, status: number = 400, details: any[] = []) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+    this.details = details;
   }
 }
 
@@ -69,465 +38,445 @@ export class ApiClient {
   }
 
   static getToken(): string | null {
+    if (!this.token) {
+      this.token = localStorage.getItem('bluemoon_token');
+    }
     return this.token;
   }
 
-  // --- Real Fetch with Graceful Mock Fallback ---
+  /**
+   * Core request method communicating with backend FastAPI server.
+   * Includes 8-second timeout via AbortController to avoid frozen UI.
+   */
   private static async request<T>(
     endpoint: string,
-    options: RequestInit = {},
-    mockFallback?: () => T
+    options: RequestInit = {}
   ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const response = await fetch(`/api/v1${endpoint}`, {
         ...options,
         headers,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        let errData;
+        let errData: { code?: string; message?: string; details?: any[] } = {};
         try {
           errData = await response.json();
         } catch {
-          errData = { message: response.statusText };
+          errData = {
+            code: response.status === 401 ? 'UNAUTHENTICATED' : 'HTTP_ERROR',
+            message: response.statusText || 'Lỗi xử lý từ máy chủ',
+          };
         }
 
-        // If backend actually answered with an API business error (e.g., 400, 423), throw it
-        if (response.status !== 404 && response.status !== 502 && response.status !== 503) {
-          throw new Error(errData.message || 'Lỗi hệ thống');
-        }
+        throw new ApiError(
+          errData.code || 'HTTP_ERROR',
+          errData.message || 'Lỗi xử lý từ hệ thống',
+          response.status,
+          errData.details || []
+        );
+      }
 
-        // If 404 or server down, fallback to mock if available
-        if (mockFallback) return mockFallback();
-        throw new Error(errData.message || 'Lỗi kết nối máy chủ');
+      if (response.status === 204) {
+        return undefined as unknown as T;
       }
 
       return (await response.json()) as T;
     } catch (err: any) {
-      // If network fetch fails (backend not running locally), seamlessly fallback
-      if (mockFallback) {
-        return mockFallback();
+      clearTimeout(timeoutId);
+
+      if (err instanceof ApiError) {
+        throw err;
       }
-      throw err;
+
+      if (err.name === 'AbortError') {
+        throw new ApiError(
+          'REQUEST_TIMEOUT',
+          'Yêu cầu kết nối quá thời gian chờ (8s). Máy chủ Backend không phản hồi.',
+          408
+        );
+      }
+
+      // Failed to fetch: backend service is offline
+      throw new ApiError(
+        'BACKEND_OFFLINE',
+        'Không thể kết nối đến máy chủ Backend (http://localhost:8000). Vui lòng kiểm tra dịch vụ Backend.',
+        503
+      );
     }
   }
 
   // ==========================================
   // AUTH (US-28, US-29, US-44)
   // ==========================================
+
   static async login(username: string, password: string): Promise<{ token: string; user: User }> {
-    return this.request(
-      '/auth/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-      },
-      () => {
-        const users = getStorage<User[]>('users', INITIAL_USERS);
-        const user = users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-        if (!user) {
-          throw new Error('Tên đăng nhập hoặc mật khẩu không chính xác.');
-        }
+    const res = await this.request<{
+      token: string;
+      token_type: string;
+      expires_in: number;
+      user: User;
+    }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
 
-        if (password !== 'BlueMoon@2026') {
-          throw new Error('Tên đăng nhập hoặc mật khẩu không chính xác.');
-        }
+    this.setToken(res.token);
+    return { token: res.token, user: res.user };
+  }
 
-        const token = `fake-jwt-${user.id}-${Date.now()}`;
-        this.setToken(token);
-        return { token, user };
-      }
-    );
+  static async logout(): Promise<void> {
+    try {
+      await this.request<void>('/auth/logout', { method: 'POST' });
+    } finally {
+      this.setToken(null);
+    }
+  }
+
+  static async getMe(): Promise<User> {
+    return this.request<User>('/auth/me');
   }
 
   static async changePassword(old_password: string, new_password: string): Promise<void> {
-    return this.request(
-      '/auth/change-password',
-      {
-        method: 'POST',
-        body: JSON.stringify({ old_password, new_password }),
-      },
-      () => {
-        if (new_password.length < 8) {
-          throw new Error('Mật khẩu mới phải có tối thiểu 8 ký tự.');
-        }
-      }
-    );
+    return this.request<void>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password, new_password }),
+    });
   }
 
   // ==========================================
-  // APARTMENTS & HOUSEHOLDS (US-01, US-02, US-03)
+  // ROLES & USERS (US-30, US-31)
   // ==========================================
-  static async getApartments(): Promise<Apartment[]> {
-    return this.request('/apartments', {}, () => getStorage('apartments', INITIAL_APARTMENTS));
+
+  static async getRoles(): Promise<Role[]> {
+    return this.request<Role[]>('/roles');
   }
 
-  static async addApartment(data: Partial<Apartment>): Promise<Apartment> {
-    const apts = getStorage<Apartment[]>('apartments', INITIAL_APARTMENTS);
-    const newApt: Apartment = {
-      id: apts.length + 1,
-      code: data.code || `B${1000 + apts.length}`,
-      floor: data.floor || 1,
-      area_m2: data.area_m2 || 70,
-      status: 'ACTIVE',
-      note: data.note,
-      current_household: null,
+  static async getUsers(params?: {
+    page?: number;
+    page_size?: number;
+    q?: string;
+    role?: string;
+    is_active?: boolean;
+  }): Promise<Page<User>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.q) query.append('q', params.q);
+    if (params?.role) query.append('role', params.role);
+    if (params?.is_active !== undefined) query.append('is_active', String(params.is_active));
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<User>>(`/users${qs}`);
+  }
+
+  static async getUser(id: number): Promise<User> {
+    return this.request<User>(`/users/${id}`);
+  }
+
+  static async createUser(payload: {
+    username: string;
+    full_name: string;
+    role_id: number;
+    email?: string;
+    phone?: string;
+  }): Promise<UserWithTempPassword> {
+    return this.request<UserWithTempPassword>('/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async updateUser(
+    id: number,
+    payload: { full_name?: string; email?: string; phone?: string; is_active?: boolean }
+  ): Promise<User> {
+    return this.request<User>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async setUserRole(userId: number, roleId: number): Promise<User> {
+    return this.request<User>(`/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role_id: roleId }),
+    });
+  }
+
+  static async lockUser(userId: number): Promise<User> {
+    return this.request<User>(`/users/${userId}/lock`, {
+      method: 'POST',
+    });
+  }
+
+  static async unlockUser(userId: number): Promise<User> {
+    return this.request<User>(`/users/${userId}/unlock`, {
+      method: 'POST',
+    });
+  }
+
+  static async resetUserPassword(userId: number): Promise<{ temporary_password: string }> {
+    return this.request<{ temporary_password: string }>(`/users/${userId}/reset-password`, {
+      method: 'POST',
+    });
+  }
+
+  // ==========================================
+  // APARTMENTS (US-01)
+  // ==========================================
+
+  static async getApartments(params?: {
+    page?: number;
+    page_size?: number;
+    floor?: number;
+    status?: string;
+  }): Promise<Page<Apartment>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.floor !== undefined) query.append('floor', String(params.floor));
+    if (params?.status) query.append('status', params.status);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<Apartment>>(`/apartments${qs}`);
+  }
+
+  static async getApartment(id: number): Promise<Apartment> {
+    return this.request<Apartment>(`/apartments/${id}`);
+  }
+
+  static async createApartment(payload: {
+    code: string;
+    floor: number;
+    area_m2: number;
+    note?: string;
+  }): Promise<Apartment> {
+    return this.request<Apartment>('/apartments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async updateApartment(
+    id: number,
+    payload: { floor?: number; area_m2?: number; status?: string; note?: string }
+  ): Promise<Apartment> {
+    return this.request<Apartment>(`/apartments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // ==========================================
+  // HOUSEHOLDS (US-01, US-02, US-03)
+  // ==========================================
+
+  static async getHouseholds(params?: {
+    page?: number;
+    page_size?: number;
+    apartment_id?: number;
+    status?: string;
+  }): Promise<Page<Household>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.apartment_id) query.append('apartment_id', String(params.apartment_id));
+    if (params?.status) query.append('status', params.status);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<Household>>(`/households${qs}`);
+  }
+
+  static async getHousehold(id: number): Promise<Household> {
+    return this.request<Household>(`/households/${id}`);
+  }
+
+  static async createHousehold(payload: {
+    household_code: string;
+    apartment_id?: number;
+    occupancy_start_date?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    note?: string;
+    head?: {
+      full_name: string;
+      date_of_birth: string;
+      gender: string;
+      cccd?: string;
+      phone?: string;
+      email?: string;
+      relationship_to_head?: string;
+      is_head?: boolean;
     };
-    apts.push(newApt);
-    setStorage('apartments', apts);
-    return newApt;
+  }): Promise<HouseholdCreated> {
+    return this.request<HouseholdCreated>('/households', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
-  static async getHouseholds(): Promise<Household[]> {
-    return this.request('/households', {}, () => getStorage('households', INITIAL_HOUSEHOLDS));
+  static async updateHousehold(
+    id: number,
+    payload: { contact_phone?: string; contact_email?: string; note?: string }
+  ): Promise<Household> {
+    return this.request<Household>(`/households/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   }
 
-  static async transferApartment(apartmentId: number, newHouseholdCode: string, ownerName: string, phone: string) {
-    const households = getStorage<Household[]>('households', INITIAL_HOUSEHOLDS);
-    const apartments = getStorage<Apartment[]>('apartments', INITIAL_APARTMENTS);
-    const apt = apartments.find((a) => a.id === apartmentId);
-
-    if (!apt) throw new Error('Không tìm thấy căn hộ');
-
-    const newH: Household = {
-      id: households.length + 1,
-      household_code: newHouseholdCode,
-      status: 'ACTIVE',
-      contact_phone: phone,
-      apartment: { id: apt.id, code: apt.code, floor: apt.floor, area_m2: apt.area_m2 },
-      member_count: 1,
-      credit_balance: 0,
-      total_debt: 0,
-      occupancy_start_date: new Date().toISOString().split('T')[0],
-    };
-
-    households.push(newH);
-    setStorage('households', households);
-
-    apt.current_household = {
-      id: newH.id,
-      household_code: newH.household_code,
-      head_name: ownerName,
-      contact_phone: phone,
-      member_count: 1,
-    };
-    setStorage('apartments', apartments);
-    return newH;
+  static async deactivateHousehold(id: number, reason: string): Promise<Household> {
+    return this.request<Household>(`/households/${id}/deactivate`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
   }
 
-  // ==========================================
-  // RESIDENTS & STAYS (US-05..US-10)
-  // ==========================================
-  static async getResidents(): Promise<Resident[]> {
-    return this.request('/residents', {}, () => getStorage('residents', INITIAL_RESIDENTS));
+  static async transferApartment(
+    id: number,
+    payload: { new_household_id: number; effective_date: string; reason?: string }
+  ): Promise<Household> {
+    return this.request<Household>(`/households/${id}/transfer`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
-  static async addResident(data: Partial<Resident>): Promise<Resident> {
-    const residents = getStorage<Resident[]>('residents', INITIAL_RESIDENTS);
-    const newR: Resident = {
-      id: residents.length + 1,
-      household_id: data.household_id || 1,
-      full_name: data.full_name || '',
-      date_of_birth: data.date_of_birth || '2000-01-01',
-      gender: data.gender || 'NAM',
-      cccd: data.cccd,
-      phone: data.phone,
-      relationship_to_head: data.relationship_to_head || 'Thành viên',
-      is_head: data.is_head || false,
-      residence_status: 'THUONG_TRU',
-    };
-    residents.push(newR);
-    setStorage('residents', residents);
-    return newR;
-  }
-
-  static async getExpiringStays(): Promise<TemporaryStay[]> {
-    return this.request('/temporary-stays/expiring', {}, () => getStorage('expiring_stays', INITIAL_EXPIRING_STAYS));
+  static async changeHead(
+    id: number,
+    payload: { new_head_resident_id: number; effective_date: string; reason?: string }
+  ): Promise<Household> {
+    return this.request<Household>(`/households/${id}/head`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 
   // ==========================================
-  // FEE CATALOG & BILLING (US-12..US-17, US-47)
+  // FEE TYPES (US-12, US-13)
   // ==========================================
-  static async getFeeTypes(): Promise<FeeType[]> {
-    return this.request('/fee-types', {}, () => getStorage('fee_types', INITIAL_FEE_TYPES));
+
+  static async getFeeTypes(params?: {
+    page?: number;
+    page_size?: number;
+    status?: string;
+    fee_group?: string;
+  }): Promise<Page<FeeType>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.status) query.append('status', params.status);
+    if (params?.fee_group) query.append('fee_group', params.fee_group);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<FeeType>>(`/fee-types${qs}`);
   }
 
-  static async addFeeType(data: Partial<FeeType>): Promise<FeeType> {
-    const feeTypes = getStorage<FeeType[]>('fee_types', INITIAL_FEE_TYPES);
-    const newFee: FeeType = {
-      id: feeTypes.length + 1,
-      code: data.code || `FEE_${Date.now()}`,
-      name: data.name || '',
-      fee_group: data.fee_group || 'MANAGEMENT',
-      calc_method: data.calc_method || 'PER_M2',
-      unit_label: data.unit_label || 'm²',
-      vehicle_type: data.vehicle_type,
-      is_pass_through: data.is_pass_through || false,
-      cycle: data.cycle || 'MONTHLY',
-      due_day: data.due_day || 15,
-      status: 'ACTIVE',
-      description: data.description,
-      current_unit_price: data.current_unit_price || 0,
-    };
-    feeTypes.push(newFee);
-    setStorage('fee_types', feeTypes);
-    return newFee;
+  static async createFeeType(payload: {
+    code: string;
+    name: string;
+    fee_group: string;
+    calc_method: string;
+    unit_label: string;
+    vehicle_type?: string;
+    is_pass_through?: boolean;
+    provider_id?: number;
+    cycle?: string;
+    due_day?: number;
+    description?: string;
+  }): Promise<FeeType> {
+    return this.request<FeeType>('/fee-types', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
-  static async deactivateFeeType(id: number): Promise<void> {
-    const feeTypes = getStorage<FeeType[]>('fee_types', INITIAL_FEE_TYPES);
-    const fee = feeTypes.find((f) => f.id === id);
-    if (fee) {
-      fee.status = 'INACTIVE';
-      setStorage('fee_types', feeTypes);
+  static async updateFeeType(
+    id: number,
+    payload: {
+      name?: string;
+      unit_label?: string;
+      cycle?: string;
+      due_day?: number;
+      description?: string;
     }
+  ): Promise<FeeType> {
+    return this.request<FeeType>(`/fee-types/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   }
 
-  static async getBillingPeriods(): Promise<BillingPeriod[]> {
-    return this.request('/billing-periods', {}, () => getStorage('billing_periods', INITIAL_BILLING_PERIODS));
-  }
-
-  static async generateBillingPeriod(periodMonth: string, name: string): Promise<BillingPeriod> {
-    const periods = getStorage<BillingPeriod[]>('billing_periods', INITIAL_BILLING_PERIODS);
-    const newP: BillingPeriod = {
-      id: periods.length + 1,
-      period_month: periodMonth,
-      name: name,
-      due_date: `${periodMonth.slice(0, 7)}-20`,
-      status: 'OPEN',
-      generated_at: new Date().toISOString(),
-      total_invoices: 1000,
-      total_receivable: 1460000000,
-      total_collected: 0,
-    };
-    periods.unshift(newP);
-    setStorage('billing_periods', periods);
-    return newP;
-  }
-
-  static async getInvoices(): Promise<Invoice[]> {
-    return this.request('/invoices', {}, () => getStorage('invoices', INITIAL_INVOICES));
+  static async deactivateFeeType(id: number): Promise<FeeType> {
+    return this.request<FeeType>(`/fee-types/${id}/deactivate`, {
+      method: 'POST',
+    });
   }
 
   // ==========================================
-  // CASHIER & PAYMENTS (US-18, US-19, US-20, US-22)
+  // AUDIT LOGS (US-32)
   // ==========================================
-  static async getPayments(): Promise<Payment[]> {
-    return this.request('/payments', {}, () => getStorage('payments', INITIAL_PAYMENTS));
-  }
 
-  static async collectPayment(payload: {
-    household_id: number;
-    amount: number;
-    method: 'CASH' | 'BANK_TRANSFER';
-    reference_no?: string;
-    item_ids: number[];
-  }): Promise<Payment> {
-    const payments = getStorage<Payment[]>('payments', INITIAL_PAYMENTS);
-    const invoices = getStorage<Invoice[]>('invoices', INITIAL_INVOICES);
-    const invoice = invoices.find((inv) => inv.household_id === payload.household_id);
+  static async getAuditLogs(params?: {
+    page?: number;
+    page_size?: number;
+    action?: string;
+    entity_type?: string;
+    from_date?: string;
+    to_date?: string;
+    user_id?: number;
+  }): Promise<Page<AuditLog>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.action) query.append('action', params.action);
+    if (params?.entity_type) query.append('entity_type', params.entity_type);
+    if (params?.from_date) query.append('from_date', params.from_date);
+    if (params?.to_date) query.append('to_date', params.to_date);
+    if (params?.user_id) query.append('user_id', String(params.user_id));
 
-    const receiptNo = `BL${String(payments.length + 1).padStart(8, '0')}`;
-    const newPayment: Payment = {
-      id: payments.length + 1,
-      receipt_no: receiptNo,
-      household_id: payload.household_id,
-      household_code: invoice ? invoice.household_code : 'H-UNKNOWN',
-      apartment_code: invoice ? invoice.apartment_code : '---',
-      payer_name: invoice ? invoice.head_name : 'Cư dân',
-      paid_at: new Date().toISOString(),
-      amount: payload.amount,
-      allocated_amount: payload.amount > (invoice?.remaining_amount || 0) ? (invoice?.remaining_amount || 0) : payload.amount,
-      credit_amount: payload.amount > (invoice?.remaining_amount || 0) ? payload.amount - (invoice?.remaining_amount || 0) : 0,
-      method: payload.method,
-      reference_no: payload.reference_no,
-      collected_by_name: 'Thủ quỹ trực quầy',
-      status: 'VALID',
-      print_count: 1,
-      allocations: (invoice?.items || []).map((it) => ({
-        id: it.id,
-        invoice_item_id: it.id,
-        fee_name: it.fee_name,
-        amount: it.net_amount - it.paid_amount,
-      })),
-    };
-
-    if (invoice) {
-      invoice.paid_amount += newPayment.allocated_amount;
-      invoice.remaining_amount = Math.max(0, invoice.total_due - invoice.paid_amount);
-      if (invoice.remaining_amount === 0) {
-        invoice.status = 'PAID';
-      } else {
-        invoice.status = 'PARTIAL';
-      }
-      setStorage('invoices', invoices);
-    }
-
-    payments.unshift(newPayment);
-    setStorage('payments', payments);
-    return newPayment;
-  }
-
-  static async cancelPayment(id: number, reason: string): Promise<void> {
-    const payments = getStorage<Payment[]>('payments', INITIAL_PAYMENTS);
-    const payment = payments.find((p) => p.id === id);
-    if (!payment) throw new Error('Biên lai không tồn tại');
-
-    payment.status = 'CANCELLED';
-    payment.cancel_reason = reason;
-    payment.cancelled_by_name = 'Lãnh đạo BQT / Kế toán trưởng';
-    payment.cancelled_at = new Date().toISOString();
-    setStorage('payments', payments);
-  }
-
-  static async recordPrintCount(paymentId: number): Promise<number> {
-    const payments = getStorage<Payment[]>('payments', INITIAL_PAYMENTS);
-    const payment = payments.find((p) => p.id === paymentId);
-    if (payment) {
-      payment.print_count += 1;
-      setStorage('payments', payments);
-      return payment.print_count;
-    }
-    return 1;
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<AuditLog>>(`/audit-logs${qs}`);
   }
 
   // ==========================================
-  // DONATIONS (US-40, US-41, US-42)
+  // SYSTEM BACKUPS (US-45)
   // ==========================================
-  static async getDonationCampaigns(): Promise<DonationCampaign[]> {
-    return this.request('/donations/campaigns', {}, () => getStorage('donation_campaigns', INITIAL_DONATION_CAMPAIGNS));
-  }
 
-  static async addDonation(data: {
-    campaign_id: number;
-    household_id: number;
-    amount: number;
-    donor_name: string;
-    method: 'CASH' | 'BANK_TRANSFER';
-  }): Promise<Donation> {
-    const donations = getStorage<Donation[]>('donations', INITIAL_DONATIONS);
-    const campaigns = getStorage<DonationCampaign[]>('donation_campaigns', INITIAL_DONATION_CAMPAIGNS);
-    const camp = campaigns.find((c) => c.id === data.campaign_id);
+  static async getBackupJobs(params?: {
+    page?: number;
+    page_size?: number;
+    status?: string;
+  }): Promise<Page<BackupJob>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.status) query.append('status', params.status);
 
-    const voucherNo = `QT${String(donations.length + 1).padStart(8, '0')}`;
-    const newDonation: Donation = {
-      id: donations.length + 1,
-      campaign_id: data.campaign_id,
-      campaign_name: camp?.name || 'Quỹ tự nguyện',
-      household_id: data.household_id,
-      household_code: 'H-B1204-01',
-      apartment_code: 'B1204',
-      donor_name: data.donor_name,
-      voucher_no: voucherNo,
-      amount: data.amount,
-      donated_at: new Date().toISOString(),
-      method: data.method,
-      status: 'VALID',
-      collected_by_name: 'Thủ quỹ',
-    };
-
-    if (camp) {
-      camp.total_raised += data.amount;
-      camp.total_donors += 1;
-      setStorage('donation_campaigns', campaigns);
-    }
-
-    donations.unshift(newDonation);
-    setStorage('donations', donations);
-    return newDonation;
-  }
-
-  // ==========================================
-  // RESIDENT PORTAL & CHANGE REQUESTS (US-33..35)
-  // ==========================================
-  static async getChangeRequests(): Promise<ProfileChangeRequest[]> {
-    return this.request('/change-requests', {}, () => getStorage('change_requests', INITIAL_CHANGE_REQUESTS));
-  }
-
-  static async submitChangeRequest(data: {
-    request_type: 'UPDATE_RESIDENT' | 'ADD_RESIDENT' | 'UPDATE_HOUSEHOLD';
-    proposed_data: Record<string, any>;
-    evidence_files: string[];
-  }): Promise<ProfileChangeRequest> {
-    const requests = getStorage<ProfileChangeRequest[]>('change_requests', INITIAL_CHANGE_REQUESTS);
-    const newReq: ProfileChangeRequest = {
-      id: requests.length + 1,
-      household_id: 1,
-      household_code: 'H-B1204-01',
-      apartment_code: 'B1204',
-      requested_by_username: 'cudan_b1204',
-      request_type: data.request_type,
-      proposed_data: data.proposed_data,
-      evidence_files: data.evidence_files,
-      status: 'PENDING',
-      created_at: new Date().toISOString(),
-    };
-    requests.unshift(newReq);
-    setStorage('change_requests', requests);
-    return newReq;
-  }
-
-  static async reviewChangeRequest(id: number, status: 'APPROVED' | 'REJECTED', reject_reason?: string): Promise<void> {
-    const requests = getStorage<ProfileChangeRequest[]>('change_requests', INITIAL_CHANGE_REQUESTS);
-    const req = requests.find((r) => r.id === id);
-    if (!req) throw new Error('Yêu cầu không tồn tại');
-
-    if (status === 'REJECTED' && !reject_reason) {
-      throw new Error('Bắt buộc phải nhập lý do từ chối.');
-    }
-
-    req.status = status;
-    req.reject_reason = reject_reason;
-    req.reviewed_by_name = 'Trưởng BQT';
-    req.reviewed_at = new Date().toISOString();
-    setStorage('change_requests', requests);
-  }
-
-  // ==========================================
-  // ADMIN SYSTEM, USERS & AUDIT LOGS (US-30..32, US-45)
-  // ==========================================
-  static async getUsers(): Promise<User[]> {
-    return this.request('/users', {}, () => getStorage('users', INITIAL_USERS));
-  }
-
-  static async toggleUserStatus(userId: number): Promise<void> {
-    const users = getStorage<User[]>('users', INITIAL_USERS);
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      user.is_active = !user.is_active;
-      setStorage('users', users);
-    }
-  }
-
-  static async getAuditLogs(): Promise<AuditLog[]> {
-    return this.request('/audit-logs', {}, () => getStorage('audit_logs', INITIAL_AUDIT_LOGS));
-  }
-
-  static async getBackupJobs(): Promise<BackupJob[]> {
-    return this.request('/system/backups', {}, () => getStorage('backup_jobs', INITIAL_BACKUP_JOBS));
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<BackupJob>>(`/system/backups${qs}`);
   }
 
   static async triggerBackup(): Promise<BackupJob> {
-    const jobs = getStorage<BackupJob[]>('backup_jobs', INITIAL_BACKUP_JOBS);
-    const newJob: BackupJob = {
-      id: jobs.length + 1,
-      status: 'SUCCEEDED',
-      requested_by_name: 'Quản Trị Viên (Thao tác tay)',
-      requested_at: new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-      size_bytes: 48500000,
-      file_path: `/backups/bluemoon_backup_manual_${Date.now()}.sql.gz`,
-    };
-    jobs.unshift(newJob);
-    setStorage('backup_jobs', jobs);
-    return newJob;
+    return this.request<BackupJob>('/system/backups', {
+      method: 'POST',
+    });
   }
 }
