@@ -33,18 +33,57 @@ database/
 
 ---
 
-## 🚀 4. Hướng dẫn khởi tạo CSDL trên máy Local
+## 🚀 4. Hướng dẫn chạy PostgreSQL bằng Docker
 
-### Bước 1: Tạo Database trong PostgreSQL
-Mở terminal hoặc pgAdmin và chạy lệnh:
-```sql
-CREATE DATABASE bluemoon_db WITH OWNER postgres ENCODING 'UTF8';
-```
+Từ thư mục gốc dự án:
 
-### Bước 2: Chạy kịch bản khởi tạo bảng (Schema DDL)
-Chạy trực tiếp file `01_schema.sql` vào database vừa tạo:
 ```bash
-psql -U postgres -d bluemoon_db -f database/01_schema.sql
+cp .env.example .env
+# Cập nhật POSTGRES_DB, POSTGRES_USER và POSTGRES_PASSWORD trong .env
+
+# Kiểm tra cấu hình Compose
+docker compose config
+
+# Tạo và khởi động PostgreSQL
+docker compose up -d postgres
+
+# Kiểm tra trạng thái và health check
+docker compose ps
+docker compose logs postgres
 ```
 
-*Lưu ý:* File `01_schema.sql` đã tích hợp sẵn cơ chế **Idempotent** (`IF NOT EXISTS`, `DROP TRIGGER IF EXISTS`, `ON CONFLICT DO NOTHING`), an toàn khi chạy lại nhiều lần.
+Container bind PostgreSQL tới `127.0.0.1:5432`, dùng named volume `postgres-data`, và mount `01_schema.sql` vào `/docker-entrypoint-initdb.d/` của official PostgreSQL image.
+
+Lần khởi tạo volume đầu tiên, PostgreSQL sẽ tự:
+
+1. Tạo database theo `POSTGRES_DB`.
+2. Tạo user theo `POSTGRES_USER`.
+3. Chạy `database/01_schema.sql` để tạo bảng, index, trigger, function, view và seed metadata.
+
+Không cần chạy `psql -f database/01_schema.sql` thủ công sau lần khởi tạo đầu tiên. Khi container restart với cùng named volume, entrypoint không chạy lại file init.
+
+Kiểm tra kết nối:
+
+```bash
+docker compose exec postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;"'
+```
+
+Nếu schema thay đổi sau lần khởi tạo đầu tiên, dùng migration hoặc kiểm tra/cập nhật bằng `psql` có kiểm soát. Không chạy lại toàn bộ `01_schema.sql` mặc định để tránh thay đổi ngoài ý muốn.
+
+## 5. Sao lưu và phục hồi
+
+Tạo backup và copy ra thư mục dự án:
+
+```bash
+docker compose exec postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c -f /tmp/bluemoon.dump'
+docker compose cp postgres:/tmp/bluemoon.dump ./bluemoon.dump
+```
+
+Khi thực hiện restore, copy backup vào container trước và dùng database mới hoặc database đã xác nhận backup:
+
+```bash
+docker compose cp ./bluemoon.dump postgres:/tmp/bluemoon.dump
+docker compose exec postgres sh -lc 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists /tmp/bluemoon.dump'
+```
+
+Không dùng `docker compose down -v`; thao tác đó xóa named volume `postgres-data` và toàn bộ dữ liệu PostgreSQL Docker.

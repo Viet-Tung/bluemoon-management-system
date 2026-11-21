@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![Course](https://img.shields.io/badge/SoICT%2F_HUST-Intro_to_SE-red.svg) ![Team](https://img.shields.io/badge/Team-Nh%C3%B3m_18-success.svg)
 
-> **Dự án môn học:** Nhập môn Công nghệ Phần mềm (Introduction to Software Engineering) - Trường CNTT&TT, Đại học Bách Khoa Hà Nội.  
+> **Dự án môn học:** Nhập môn Công nghệ Phần mềm (Introduction to Software Engineering) - Trường CNTT&TT, Đại học Bách Khoa Hà Nội.
 > **Khách hàng mục tiêu:** Ban Quản Trị (BQT), Kế toán, Thủ quỹ và Cư dân tòa nhà chung cư BlueMoon (Quy mô ~1.000 căn hộ, ~5.000 nhân khẩu).
 
 ---
@@ -11,8 +11,8 @@
 
 Hiện tại, Ban quản trị chung cư BlueMoon đang quản lý thông tin hộ khẩu, biến động nhân khẩu và thu phí hàng tháng bằng nhiều file Excel rời rạc và biên lai giấy. Việc này dẫn đến:
 
-- Tốn nhiều thời gian nhân công thức tính phí theo diện tích ($\text{m}^2$) và tổng hợp công nợ.  
-- Dễ xảy ra sai sót khi thu một phần, nộp thừa, hoặc đổi chủ căn hộ.  
+- Tốn nhiều thời gian nhân công thức tính phí theo diện tích ($\text{m}^2$) và tổng hợp công nợ.
+- Dễ xảy ra sai sót khi thu một phần, nộp thừa, hoặc đổi chủ căn hộ.
 - Khó tra cứu tức thì khi cư dân đến nộp phí hoặc khi Công an phường yêu cầu báo cáo cư trú.
 
 **Phần mềm Quản lý Chung cư BlueMoon** được xây dựng nhằm số hóa 100% quy trình quản lý nhân khẩu, tự động hóa tính phí định kỳ, quản lý biên lai điện tử và cung cấp cổng tra cứu minh bạch cho cư dân.
@@ -23,20 +23,20 @@ Hiện tại, Ban quản trị chung cư BlueMoon đang quản lý thông tin h�
 
 Hệ thống bao gồm **3 Module cốt lõi** (ánh xạ từ 8 Epics, 27 Features và 43 User Stories):
 
-1. **🔐 Module Quản lý người dùng & Nền tảng (`EP-05`, `EP-08`):**  
-   - Đăng nhập, bắt buộc đổi mật khẩu lần đầu, tự động khóa tạm thời 15 phút khi nhập sai 5 lần.  
-   - Phân quyền theo vai trò (RBAC): `Trưởng BQT (Admin)`, `Kế toán`, `Thủ quỹ`, `Cư dân`.  
-   - Ghi nhận nhật ký thao tác nhạy cảm (`Audit Log`) và tự động sao lưu CSDL hằng ngày lúc 02:00 sáng.  
-2. **👨‍👩‍👧‍👦 Module Quản lý hộ gia đình & Cổng cư dân (`EP-01`, `EP-09`):**  
-   - Quản lý tách biệt thực thể **Căn hộ** (diện tích, tầng) và **Hộ gia đình** (nhóm nhân khẩu đang cư trú) hỗ trợ nghiệp vụ chuyển nhượng căn hộ.  
-   - Quản lý nhân khẩu, biến động (thêm mới sinh, chuyển đi, tách hộ) và cảnh báo Tạm trú/Tạm vắng sắp hết hạn trước 15 ngày.  
-   - Import danh sách hộ từ Excel và xuất báo cáo cư trú theo mẫu Công an (`DOC-03`).  
-   - Cổng thông tin cho Cư dân tự tra cứu thông tin hộ, lịch sử nộp phí và gửi đề nghị chỉnh sửa.  
-3. **💰 Module Quản lý thu phí, Thống kê & Quỹ tự nguyện (`EP-02`, `EP-03`, `EP-04`, `EP-10`):**  
-   - Cấu hình danh mục khoản thu (bắt buộc theo $\text{m}^2$, cố định theo hộ) và lưu vết lịch sử đơn giá.  
-   - Khởi tạo kỳ thu tự động cho 1.000 hộ trong $\le 10$ giây (tự động cộng nợ cũ và bù trừ số dư có).  
-   - Ghi nhận thu tiền (tiền mặt/chuyển khoản), xử lý nộp một phần hoặc nộp dư, in biên lai điện tử (đóng dấu "BẢN SAO" khi in lại).  
-   - Quản lý các đợt vận động đóng góp quỹ tự nguyện riêng biệt với công nợ bắt buộc.  
+1. **🔐 Module Quản lý người dùng & Nền tảng (`EP-05`, `EP-08`):**
+   - Đăng nhập, bắt buộc đổi mật khẩu lần đầu, tự động khóa tạm thời 15 phút khi nhập sai 5 lần.
+   - Phân quyền theo vai trò (RBAC): `Trưởng BQT (Admin)`, `Kế toán`, `Thủ quỹ`, `Cư dân`.
+   - Ghi nhận nhật ký thao tác nhạy cảm (`Audit Log`) và tự động sao lưu CSDL hằng ngày lúc 02:00 sáng.
+2. **👨‍👩‍👧‍👦 Module Quản lý hộ gia đình & Cổng cư dân (`EP-01`, `EP-09`):**
+   - Quản lý tách biệt thực thể **Căn hộ** (diện tích, tầng) và **Hộ gia đình** (nhóm nhân khẩu đang cư trú) hỗ trợ nghiệp vụ chuyển nhượng căn hộ.
+   - Quản lý nhân khẩu, biến động (thêm mới sinh, chuyển đi, tách hộ) và cảnh báo Tạm trú/Tạm vắng sắp hết hạn trước 15 ngày.
+   - Import danh sách hộ từ Excel và xuất báo cáo cư trú theo mẫu Công an (`DOC-03`).
+   - Cổng thông tin cho Cư dân tự tra cứu thông tin hộ, lịch sử nộp phí và gửi đề nghị chỉnh sửa.
+3. **💰 Module Quản lý thu phí, Thống kê & Quỹ tự nguyện (`EP-02`, `EP-03`, `EP-04`, `EP-10`):**
+   - Cấu hình danh mục khoản thu (bắt buộc theo $\text{m}^2$, cố định theo hộ) và lưu vết lịch sử đơn giá.
+   - Khởi tạo kỳ thu tự động cho 1.000 hộ trong $\le 10$ giây (tự động cộng nợ cũ và bù trừ số dư có).
+   - Ghi nhận thu tiền (tiền mặt/chuyển khoản), xử lý nộp một phần hoặc nộp dư, in biên lai điện tử (đóng dấu "BẢN SAO" khi in lại).
+   - Quản lý các đợt vận động đóng góp quỹ tự nguyện riêng biệt với công nợ bắt buộc.
    - Tìm kiếm đa tiêu chí $\le 1$ giây, Dashboard biểu đồ trực quan và xuất báo cáo Excel/PDF.
 
 ---
@@ -110,12 +110,40 @@ Toàn bộ tài liệu kỹ thuật và kế hoạch thống nhất cho giai đo
 
 ### Các bước khởi chạy
 
-```bash
-# 1. Khởi tạo Cơ sở dữ liệu PostgreSQL
-# Chạy file DDL tạo 28 bảng:
-psql -U postgres -d bluemoon_db -f database/01_schema.sql
+### PostgreSQL bằng Docker Compose
 
-# 2. Khởi chạy Backend API Server (Python FastAPI)
+```bash
+# 1. Tạo cấu hình secret local từ mẫu
+cp .env.example .env
+
+# 2. Mở .env và thay các placeholder bằng thông tin PostgreSQL local
+# Không commit file .env
+
+# 3. Kiểm tra cấu hình và khởi động PostgreSQL
+# Xem lỗi cấu hình nhưng không xóa volume:
+docker compose config
+docker compose up -d postgres
+
+# 4. Kiểm tra trạng thái và health check
+docker compose ps
+docker compose logs postgres
+
+# 5. Kiểm tra kết nối bằng truy vấn chỉ đọc
+docker compose exec postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;"'
+
+# 6. Sao lưu và khôi phục dữ liệu
+# Đường dẫn backup trên host phụ thuộc shell và biến môi trường:
+docker compose exec postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c -f /tmp/bluemoon.dump'
+# Lệnh khôi phục chỉ chạy sau backup thành công và không dùng dữ liệu production làm test.
+```
+
+PostgreSQL image chính thức `postgres:16` bind tới `127.0.0.1:5432`, lưu dữ liệu trong named volume `postgres-data`, và tự chạy `database/01_schema.sql` chỉ trong lần khởi tạo database mới. Backend chạy bằng `DATABASE_URL=postgresql+psycopg://USER:PASSWORD@localhost:5432/DATABASE_NAME`.
+
+Chỉ dùng `docker compose down` để dừng container. Tuyệt đối không dùng `docker compose down -v`, vì có thể xóa named volume.
+
+### Khởi chạy Backend API Server (Python FastAPI)
+
+```bash
 cd backend
 python -m venv venv
 # Windows: venv\Scripts\activate | macOS/Linux: source venv/bin/activate
