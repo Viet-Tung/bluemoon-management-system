@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Database, HardDriveDownload, Clock, CheckCircle2, AlertCircle, Play } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Database, HardDriveDownload, Clock, RefreshCw, AlertCircle } from 'lucide-react';
 import { ApiClient } from '../../api';
 import { BackupJob } from '../../types';
 import { Button } from '../../components/common/Button';
@@ -7,32 +7,39 @@ import { Badge } from '../../components/common/Badge';
 import { useToast } from '../../context/ToastContext';
 
 export const SystemBackupPage: React.FC = () => {
-  const { success, error } = useToast();
+  const { success, error: toastError } = useToast();
   const [jobs, setJobs] = useState<BackupJob[]>([]);
   const [backingUp, setBackingUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await ApiClient.getBackupJobs({ page: 1, page_size: 50 });
+      setJobs(data.items || []);
+    } catch (err: any) {
+      const msg = err.message || 'Không thể tải lịch sử sao lưu từ máy chủ Backend.';
+      setErrorMessage(msg);
+      toastError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [toastError]);
 
   useEffect(() => {
     loadJobs();
-  }, []);
-
-  const loadJobs = async () => {
-    try {
-      const data = await ApiClient.getBackupJobs();
-      setJobs(data);
-    } catch (err: any) {
-      error(err.message);
-    }
-  };
+  }, [loadJobs]);
 
   const handleTriggerBackup = async () => {
     setBackingUp(true);
     try {
-      await new Promise((r) => setTimeout(r, 1200));
       const job = await ApiClient.triggerBackup();
-      success(`Sao lưu CSDL thành công! Tệp tin: ${job.file_path} (US-45).`);
+      success(`Đã khởi tạo tiến trình sao lưu CSDL (Job #${job.id}, trạng thái: ${job.status}).`);
       loadJobs();
     } catch (err: any) {
-      error(err.message);
+      toastError(err.message);
     } finally {
       setBackingUp(false);
     }
@@ -43,6 +50,21 @@ export const SystemBackupPage: React.FC = () => {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'SUCCEEDED':
+        return <Badge variant="success" dot size="sm">Thành công</Badge>;
+      case 'RUNNING':
+        return <Badge variant="info" dot size="sm">Đang sao lưu</Badge>;
+      case 'QUEUED':
+        return <Badge variant="warning" dot size="sm">Chờ xử lý</Badge>;
+      case 'FAILED':
+        return <Badge variant="danger" dot size="sm">Thất bại</Badge>;
+      default:
+        return <Badge size="sm">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -50,30 +72,58 @@ export const SystemBackupPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Database className="w-6 h-6 text-blue-600" />
-            <span>Sao Lưu & Phục Hồi CSDL PostgreSQL (US-45)</span>
+            <span>Sao Lưu CSDL PostgreSQL (Sprint 1: US-45)</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Lập lịch tự động sao lưu định kỳ lúc 02:00 sáng hàng ngày, lưu trữ 30 ngày với thời gian phục hồi RTO $\le$ 2 giờ (NFR-002, AC-45.1).
+            Lập lịch tự động sao lưu định kỳ lúc 02:00 sáng hàng ngày với thời gian phục hồi RTO ≤ 2 giờ (NFR-002, AC-45.1).
           </p>
         </div>
 
-        <Button
-          onClick={handleTriggerBackup}
-          variant="primary"
-          isLoading={backingUp}
-          icon={<HardDriveDownload className="w-4 h-4" />}
-        >
-          Kích hoạt sao lưu ngay
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadJobs}
+            isLoading={loading}
+            icon={<RefreshCw className="w-3.5 h-3.5" />}
+          >
+            Làm mới
+          </Button>
+          <Button
+            onClick={handleTriggerBackup}
+            variant="primary"
+            size="sm"
+            isLoading={backingUp}
+            icon={<HardDriveDownload className="w-3.5 h-3.5" />}
+          >
+            Kích hoạt sao lưu ngay
+          </Button>
+        </div>
       </div>
+
+      {/* Backend Connection Error Banner */}
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+            <div>
+              <p className="font-bold">Lỗi kết nối Backend</p>
+              <p className="text-rose-700 mt-0.5">{errorMessage}</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={loadJobs}>
+            Thử lại
+          </Button>
+        </div>
+      )}
 
       {/* Backup Schedule Notice */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-900 flex items-start gap-3">
         <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold">Lịch trình tự động (System Cronjob):</p>
+          <p className="font-bold">Chính sách sao lưu hệ thống (US-45):</p>
           <p className="mt-0.5 leading-relaxed text-blue-800">
-            Hệ thống tự động thực thi lệnh pg_dump xuất toàn bộ 28 bảng và views lúc <strong>02:00 sáng mỗi ngày</strong>. Các bản sao lưu được nén Gzip và lưu trữ luân phiên trong 30 ngày.
+            Hệ thống hỗ trợ kích hoạt sao lưu dữ liệu toàn vẹn bằng lệnh thủ công hoặc tự động. Các bản sao lưu được lưu trữ an toàn nhằm phục vụ quy trình khôi phục sự cố khẩn cấp.
           </p>
         </div>
       </div>
@@ -82,46 +132,48 @@ export const SystemBackupPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Lịch sử các phiên sao lưu</h3>
-          <span className="text-xs text-slate-500">Mã hóa toàn vẹn dữ liệu tài chính</span>
+          <span className="text-xs text-slate-500 font-mono">Tổng số: {jobs.length} phiên</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
               <tr>
+                <th className="py-3 px-4">Mã Job</th>
                 <th className="py-3 px-4">Thời điểm yêu cầu</th>
-                <th className="py-3 px-4">Hình thức / Người yêu cầu</th>
+                <th className="py-3 px-4">Người yêu cầu (User ID)</th>
                 <th className="py-3 px-4">Thời gian hoàn tất</th>
                 <th className="py-3 px-4">Dung lượng file</th>
-                <th className="py-3 px-4">Đường dẫn tệp tin sao lưu</th>
                 <th className="py-3 px-4 text-center">Trạng thái</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {jobs.map((job) => (
-                <tr key={job.id} className="hover:bg-slate-50">
-                  <td className="py-3.5 px-4 font-mono text-slate-800">
-                    {new Date(job.requested_at).toLocaleString('vi-VN')}
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">
-                    {job.requested_by_name || 'Hệ thống tự động (Cronjob)'}
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600">
-                    {job.finished_at ? new Date(job.finished_at).toLocaleTimeString('vi-VN') : '---'}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                    {formatBytes(job.size_bytes)}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500 text-[11px]">
-                    {job.file_path || '---'}
-                  </td>
-                  <td className="py-3.5 px-4 text-center">
-                    <Badge variant={job.status === 'SUCCEEDED' ? 'success' : 'danger'} dot size="sm">
-                      {job.status === 'SUCCEEDED' ? 'Thành công' : 'Thất bại'}
-                    </Badge>
+              {jobs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                    {loading ? 'Đang tải lịch sử sao lưu...' : 'Chưa có bản ghi sao lưu nào.'}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                jobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-slate-50">
+                    <td className="py-3.5 px-4 font-mono font-bold text-blue-700">#{job.id}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-600">
+                      {new Date(job.requested_at).toLocaleString('vi-VN')}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-700">
+                      {job.requested_by ? `User #${job.requested_by}` : 'Hệ thống tự động'}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-600">
+                      {job.finished_at ? new Date(job.finished_at).toLocaleString('vi-VN') : '---'}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">
+                      {formatBytes(job.size_bytes)}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">{getStatusBadge(job.status)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -3,16 +3,9 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Building2,
-  Users,
-  CreditCard,
-  Receipt,
-  PiggyBank,
   FileText,
-  UserCheck,
   ShieldCheck,
-  History,
   Database,
-  Building,
   UserCog,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -23,7 +16,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
-  const { hasRole, role } = useAuth();
+  const { hasRole, role, user } = useAuth();
 
   const navGroups = [
     {
@@ -38,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       ],
     },
     {
-      title: 'Cư dân & Căn hộ',
+      title: 'Quản lý Dữ liệu',
       items: [
         {
           name: 'Căn hộ & Hộ gia đình',
@@ -47,75 +40,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
           roles: ['ADMIN', 'ACCOUNTANT'],
         },
         {
-          name: 'Nhân khẩu & Tạm trú',
-          path: '/residents',
-          icon: Users,
-          roles: ['ADMIN', 'ACCOUNTANT'],
-        },
-      ],
-    },
-    {
-      title: 'Thu phí & Tài chính',
-      items: [
-        {
-          name: 'Quầy thu ngân',
-          path: '/cashier',
-          icon: CreditCard,
-          roles: ['TREASURER', 'ADMIN'],
-          badge: 'Nhanh',
-        },
-        {
-          name: 'Danh mục biểu phí',
+          name: 'Danh mục khoản thu',
           path: '/fee-catalog',
           icon: FileText,
-          roles: ['ACCOUNTANT', 'ADMIN'],
-        },
-        {
-          name: 'Kỳ thu & Tính phí',
-          path: '/billing',
-          icon: Receipt,
-          roles: ['ACCOUNTANT', 'ADMIN'],
-        },
-        {
-          name: 'Theo dõi công nợ',
-          path: '/debts',
-          icon: History,
-          roles: ['ACCOUNTANT', 'ADMIN'],
-        },
-        {
-          name: 'Quỹ tự nguyện',
-          path: '/donations',
-          icon: PiggyBank,
-          roles: ['TREASURER', 'ACCOUNTANT', 'ADMIN'],
-        },
-      ],
-    },
-    {
-      title: 'Cổng Cư Dân',
-      items: [
-        {
-          name: 'Hồ sơ Hộ gia đình',
-          path: '/portal/household',
-          icon: Building,
-          roles: ['RESIDENT'],
-        },
-        {
-          name: 'Công nợ & Đóng phí',
-          path: '/portal/finances',
-          icon: CreditCard,
-          roles: ['RESIDENT'],
+          roles: ['ADMIN', 'ACCOUNTANT'],
         },
       ],
     },
     {
       title: 'Quản trị hệ thống',
       items: [
-        {
-          name: 'Duyệt đề nghị cư dân',
-          path: '/admin/change-requests',
-          icon: UserCheck,
-          roles: ['ADMIN'],
-        },
         {
           name: 'Tài khoản & Phân quyền',
           path: '/admin/users',
@@ -152,7 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         {!collapsed && (
           <div className="min-w-0">
             <h1 className="text-sm font-bold text-white tracking-tight truncate">BlueMoon</h1>
-            <p className="text-[11px] text-slate-400 truncate">Quản lý Chung cư</p>
+            <p className="text-[11px] text-slate-400 truncate">Hệ thống Quản lý Chung cư</p>
           </div>
         )}
       </div>
@@ -189,11 +123,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     {!collapsed && <span className="truncate flex-1">{item.name}</span>}
-                    {!collapsed && item.badge && (
-                      <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-md">
-                        {item.badge}
-                      </span>
-                    )}
                   </NavLink>
                 );
               })}
@@ -207,13 +136,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         {!collapsed ? (
           <div className="bg-slate-800/60 rounded-xl p-2.5 flex items-center justify-between text-xs">
             <div className="truncate">
-              <p className="text-[11px] text-slate-400">Đang truy cập với vai trò</p>
-              <p className="text-white font-semibold truncate mt-0.5">{role}</p>
+              <p className="text-[11px] text-slate-400">Đang đăng nhập với vai trò</p>
+              <p className="text-white font-semibold truncate mt-0.5">
+                {user?.role?.name || role || 'Chưa xác thực'}
+              </p>
             </div>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
         ) : (
-          <div className="flex justify-center" title={`Vai trò: ${role}`}>
+          <div className="flex justify-center" title={`Vai trò: ${user?.role?.name || role}`}>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
         )}
