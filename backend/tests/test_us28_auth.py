@@ -133,7 +133,7 @@ def test_login_wrong_password_under_5_attempts(client, db_session, username, wro
     assert response.status_code == 401
     err = response.json()
     assert err["code"] == "INVALID_CREDENTIALS"
-    assert "còn 4 lần thử" in err["message"]
+    assert err["message"] == "Tên đăng nhập hoặc mật khẩu không chính xác."
 
     user_db = db_session.execute(select(User).where(User.username == username)).scalar_one()
     assert user_db.failed_login_count == 1
