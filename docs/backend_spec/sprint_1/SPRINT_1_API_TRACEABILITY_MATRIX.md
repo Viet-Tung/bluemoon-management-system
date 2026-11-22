@@ -431,7 +431,7 @@ Mã router: [`backend/app/routers/households.py`](file:///z:/Desktop/bluemoon-ma
   - `409 Conflict`: `HOUSEHOLD_HAS_NO_APARTMENT` khi hộ cũ hiện không nắm giữ căn hộ nào.
   - `409 Conflict`: `APARTMENT_OCCUPIED` khi hộ mới đang cư trú căn hộ khác hoặc căn hộ bị trùng daterange.
   - `500 Internal Server Error`: `INTERNAL_SERVER_ERROR`.
-* **Invariants & Audit:** Toàn vẹn giao dịch ACID: Đóng occupancy hộ cũ (`end_date = effective_date`), mở occupancy hộ mới (`start_date = effective_date`). Bảo toàn 100% lịch sử hóa đơn của căn hộ theo hộ cũ (AC-03.1). Ghi AuditLog `TRANSFER_APARTMENT`.
+* **Invariants & Audit:** Toàn vẹn giao dịch ACID: Đóng occupancy hộ cũ (`end_date = effective_date`, cận exclusive), mở occupancy hộ mới (`start_date = effective_date`). Cho phép nhiều lần chuyển nhượng trong cùng ngày nhờ khoảng nửa mở `[start_date, end_date)`. Bảo toàn 100% lịch sử hóa đơn của căn hộ theo hộ cũ (AC-03.1). Ghi AuditLog `TRANSFER_APARTMENT`.
 
 #### 27. `PUT /households/{id}/head` (changeHouseholdHead)
 * **Metadata:** US-02 | Role: `ADMIN` | WBS: `2.2.1` | OperationId: `changeHouseholdHead`

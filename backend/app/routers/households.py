@@ -555,7 +555,7 @@ def transfer_household(
 
     old_occupancy, apt = old_occupancy_row
 
-    # 6. Kiểm tra ngày hiệu lực chuyển nhượng không được trước ngày bắt đầu cư trú của hộ cũ
+    # 6. Ngày hiệu lực không được trước ngày bắt đầu cư trú của hộ cũ
     if req.effective_date < old_occupancy.start_date:
         raise AppAPIException(
             status_code=status.HTTP_400_BAD_REQUEST,

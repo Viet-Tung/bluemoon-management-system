@@ -20,7 +20,7 @@
   - **Kiểm tra căn hộ hộ cũ (`HOUSEHOLD_HAS_NO_APARTMENT`):** Hộ cũ `{id}` bắt buộc phải đang cư trú tại một căn hộ (`end_date IS NULL` trong `apartment_occupancies`). Nếu không có căn hộ, trả về HTTP `409 HOUSEHOLD_HAS_NO_APARTMENT`.
   - **Kiểm tra căn hộ hộ mới (`APARTMENT_OCCUPIED`):** Hộ mới `new_household_id` chưa được gắn với bất kỳ căn hộ nào khác (`end_date IS NULL`). Nếu hộ mới đang có căn hộ khác, hoặc căn hộ chuyển nhượng đang có tranh chấp cư trú khác, trả về HTTP `409 APARTMENT_OCCUPIED`.
   - **Giao dịch ACID nguyên tử duy nhất:**
-    + Đóng hồ sơ cư trú cũ: Ghi nhận `end_date = effective_date` và `end_reason` trong `apartment_occupancies` của hộ cũ.
+    + Đóng hồ sơ cư trú cũ: Ghi nhận `end_date = effective_date` (cận exclusive của khoảng `[start_date, end_date)`) và `end_reason` trong `apartment_occupancies` của hộ cũ.
     + Mở hồ sơ cư trú mới: Tạo bản ghi mới trong `apartment_occupancies` với `apartment_id` tương ứng, `household_id = new_household_id`, `start_date = effective_date`, `end_date = NULL`.
   - **Bảo toàn 100% dữ liệu lịch sử:**
     + Toàn bộ hóa đơn (`invoices`), khoản thu, biên lai (`payments`), sổ cái tín dụng (`household_credit_ledger`) của hộ cũ gắn với `household_id` nên được giữ nguyên vẹn 100% thuộc về hộ cũ, không bị dịch chuyển hay sửa đổi.
@@ -79,7 +79,7 @@ backend/tests/
 1. **Phân tách thực thể vật lý & đơn vị cư trú (T-01 & T-02):**
    - Căn hộ vật lý (`apartments`) độc lập hoàn toàn với hộ gia đình (`households`).
    - Mối quan hệ cư trú theo thời gian được quản lý qua bảng trung gian `apartment_occupancies`.
-   - Chuyển nhượng căn hộ không sửa đổi bảng `apartments` mà kết thúc dòng cư trú cũ (`end_date = effective_date`) và mở dòng cư trú mới (`start_date = effective_date`, `end_date = NULL`).
+   - Chuyển nhượng căn hộ không sửa đổi bảng `apartments` mà kết thúc dòng cư trú cũ (`end_date = effective_date`, cận exclusive) và mở dòng cư trú mới (`start_date = effective_date`, `end_date = NULL`). Cho phép nhiều lần chuyển nhượng trong cùng ngày bằng khoảng nửa mở `[start_date, end_date)`.
 2. **Bảo toàn dữ liệu lịch sử hóa đơn:**
    - Hệ thống hóa đơn thu phí (`invoices`, `invoice_items`) tham chiếu trực tiếp đến `household_id`.
    - Do đó, khi căn hộ được chuyển nhượng, toàn bộ biên lai, hóa đơn, lịch sử thanh toán của hộ cũ được bảo toàn 100%, không bị chuyển giao hay sửa đổi sai lệch.

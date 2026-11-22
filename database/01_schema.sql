@@ -164,7 +164,7 @@ CREATE TABLE apartment_occupancies (
     created_at   timestamptz NOT NULL DEFAULT now(),
     CHECK (end_date IS NULL OR end_date >= start_date),
     -- một căn hộ không thể có 2 hộ cùng lúc
-    EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[]') WITH &&)
+    EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[)') WITH &&)
 );
 CREATE UNIQUE INDEX ux_occupancy_household_current ON apartment_occupancies (household_id) WHERE end_date IS NULL;
 
