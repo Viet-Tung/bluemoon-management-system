@@ -36,7 +36,7 @@ export const SystemBackupPage: React.FC = () => {
     setBackingUp(true);
     try {
       const job = await ApiClient.triggerBackup();
-      success(`Đã khởi tạo tiến trình sao lưu CSDL (Job #${job.id}, trạng thái: ${job.status}).`);
+      success(`Đã khởi tạo tiến trình sao lưu dữ liệu (Bản ghi #${job.id}, trạng thái: ${job.status}).`);
       loadJobs();
     } catch (err: any) {
       toastError(err.message);
@@ -72,10 +72,10 @@ export const SystemBackupPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Database className="w-6 h-6 text-blue-600" />
-            <span>Sao Lưu CSDL PostgreSQL (Sprint 1: US-45)</span>
+            <span>Sao lưu dữ liệu hệ thống</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Lập lịch tự động sao lưu định kỳ lúc 02:00 sáng hàng ngày với thời gian phục hồi RTO ≤ 2 giờ (NFR-002, AC-45.1).
+            Lập lịch tự động sao lưu định kỳ lúc 02:00 sáng hàng ngày để đảm bảo an toàn dữ liệu.
           </p>
         </div>
 

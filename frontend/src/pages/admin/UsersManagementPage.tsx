@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ApiClient } from '../../api';
 import { User, Role } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Badge } from '../../components/common/Badge';
@@ -20,6 +21,7 @@ import { Modal } from '../../components/common/Modal';
 import { useToast } from '../../context/ToastContext';
 
 export const UsersManagementPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const { success, error: toastError } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -105,6 +107,10 @@ export const UsersManagementPage: React.FC = () => {
   };
 
   const handleToggleLock = async (u: User) => {
+    if (currentUser?.id === u.id) {
+      toastError('Không thể tự khóa tài khoản của chính mình.');
+      return;
+    }
     try {
       if (u.is_active) {
         if (!window.confirm(`Bạn có chắc muốn khóa tài khoản "${u.username}"?`)) return;
@@ -121,6 +127,10 @@ export const UsersManagementPage: React.FC = () => {
   };
 
   const handleResetPassword = async (u: User) => {
+    if (currentUser?.id === u.id) {
+      toastError('Vui lòng sử dụng tính năng Đổi mật khẩu cá nhân để đổi mật khẩu của bạn.');
+      return;
+    }
     if (!window.confirm(`Bạn có chắc muốn cấp lại mật khẩu tạm thời cho tài khoản "${u.username}"?`)) {
       return;
     }
@@ -142,6 +152,10 @@ export const UsersManagementPage: React.FC = () => {
   const handleChangeRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUser) return;
+    if (currentUser?.id === targetUser.id) {
+      toastError('Không thể tự thay đổi vai trò của chính mình.');
+      return;
+    }
     try {
       await ApiClient.setUserRole(targetUser.id, Number(selectedRoleId));
       success(`Đã cập nhật vai trò cho người dùng "${targetUser.username}" thành công!`);
@@ -169,7 +183,7 @@ export const UsersManagementPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <UserCog className="w-6 h-6 text-blue-600" />
-            <span>Quản trị Tài khoản & Phân quyền RBAC (Sprint 1: US-30, US-31)</span>
+            <span>Quản trị Tài khoản & Phân quyền</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Quản lý tài khoản Ban Quản Trị, Kế toán, Thủ quỹ; phân vai trò và kiểm soát khóa/mở khóa tức thì.
@@ -241,7 +255,7 @@ export const UsersManagementPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Danh sách tài khoản hệ thống</h3>
-          <span className="text-xs text-slate-500">Mã hóa mật khẩu chuẩn Bcrypt rounds ≥ 12 (US-44)</span>
+          <span className="text-xs text-slate-500">Mã hóa mật khẩu an toàn theo tiêu chuẩn hệ thống</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -265,66 +279,99 @@ export const UsersManagementPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="py-3.5 px-4 font-mono font-bold text-blue-700">{u.username}</td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-900">{u.full_name}</td>
-                    <td className="py-3.5 px-4 text-slate-600">
-                      <p>{u.email || '---'}</p>
-                      {u.phone && <p className="text-[11px] text-slate-400 font-mono">{u.phone}</p>}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <Badge variant="info" size="sm">
-                        {u.role.name}
-                      </Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600">
-                      {u.last_login_at
-                        ? new Date(u.last_login_at).toLocaleString('vi-VN')
-                        : 'Chưa đăng nhập'}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <Badge variant={u.is_active ? 'success' : 'danger'} dot size="sm">
-                        {u.is_active ? 'Hoạt động' : 'Đã khóa'}
-                      </Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {u.role.code !== 'RESIDENT' && (
-                          <button
-                            onClick={() => {
-                              setTargetUser(u);
-                              setSelectedRoleId(u.role.id);
-                              setChangeRoleOpen(true);
-                            }}
-                            className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            title="Gán vai trò (US-31)"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          </button>
+                filteredUsers.map((u) => {
+                  const isSelf = currentUser?.id === u.id;
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50">
+                      <td className="py-3.5 px-4 font-mono font-bold text-blue-700">
+                        {u.username}
+                        {isSelf && (
+                          <span className="ml-1.5 text-[10px] font-sans font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                            Bạn
+                          </span>
                         )}
-                        <button
-                          onClick={() => handleResetPassword(u)}
-                          className="p-1.5 text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                          title="Cấp lại mật khẩu tạm (US-29, US-30)"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleLock(u)}
-                          className={`p-1.5 rounded-lg transition ${
-                            u.is_active
-                              ? 'text-rose-600 hover:bg-rose-50'
-                              : 'text-emerald-600 hover:bg-emerald-50'
-                          }`}
-                          title={u.is_active ? 'Khóa tài khoản (US-30)' : 'Mở khóa tài khoản (US-30)'}
-                        >
-                          {u.is_active ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{u.full_name}</td>
+                      <td className="py-3.5 px-4 text-slate-600">
+                        <p>{u.email || '---'}</p>
+                        {u.phone && <p className="text-[11px] text-slate-400 font-mono">{u.phone}</p>}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <Badge variant="info" size="sm">
+                          {u.role.name}
+                        </Badge>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600">
+                        {u.last_login_at
+                          ? new Date(u.last_login_at).toLocaleString('vi-VN')
+                          : 'Chưa đăng nhập'}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <Badge variant={u.is_active ? 'success' : 'danger'} dot size="sm">
+                          {u.is_active ? 'Hoạt động' : 'Đã khóa'}
+                        </Badge>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {u.role.code !== 'RESIDENT' && (
+                            <button
+                              disabled={isSelf}
+                              onClick={() => {
+                                setTargetUser(u);
+                                setSelectedRoleId(u.role.id);
+                                setChangeRoleOpen(true);
+                              }}
+                              className={`p-1.5 rounded-lg transition ${
+                                isSelf
+                                  ? 'text-slate-300 cursor-not-allowed'
+                                  : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                              title={isSelf ? 'Không thể tự thay đổi vai trò của chính mình' : 'Gán vai trò'}
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            disabled={isSelf}
+                            onClick={() => handleResetPassword(u)}
+                            className={`p-1.5 rounded-lg transition ${
+                              isSelf
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50'
+                            }`}
+                            title={
+                              isSelf
+                                ? 'Vui lòng sử dụng tính năng Đổi mật khẩu cá nhân'
+                                : 'Cấp lại mật khẩu tạm'
+                            }
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            disabled={isSelf}
+                            onClick={() => handleToggleLock(u)}
+                            className={`p-1.5 rounded-lg transition ${
+                              isSelf
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : u.is_active
+                                ? 'text-rose-600 hover:bg-rose-50'
+                                : 'text-emerald-600 hover:bg-emerald-50'
+                            }`}
+                            title={
+                              isSelf
+                                ? 'Không thể tự khóa tài khoản của chính mình'
+                                : u.is_active
+                                ? 'Khóa tài khoản'
+                                : 'Mở khóa tài khoản'
+                            }
+                          >
+                            {u.is_active ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -335,7 +382,7 @@ export const UsersManagementPage: React.FC = () => {
       <Modal
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Tạo tài khoản nhân sự mới (US-30)"
+        title="Tạo tài khoản nhân sự mới"
         description="Đăng ký tài khoản cho Ban Quản Trị, Kế toán hoặc Thủ quỹ. Mật khẩu tạm thời sẽ được tự động sinh."
       >
         <form onSubmit={handleCreateUser} className="space-y-4">
@@ -429,7 +476,7 @@ export const UsersManagementPage: React.FC = () => {
                 {tempPasswordResult.temporaryPassword}
               </div>
               <p className="text-[10px] text-slate-400 italic pt-1">
-                * Hệ thống sẽ tự động yêu cầu người dùng thay đổi mật khẩu ở lần đăng nhập đầu tiên (US-29, AC-29.2).
+                * Hệ thống sẽ tự động yêu cầu người dùng thay đổi mật khẩu ở lần đăng nhập đầu tiên.
               </p>
             </div>
 
@@ -442,11 +489,11 @@ export const UsersManagementPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Modal Thay đổi vai trò (US-31) */}
+      {/* Modal Thay đổi vai trò */}
       <Modal
         isOpen={changeRoleOpen}
         onClose={() => setChangeRoleOpen(false)}
-        title="Gán vai trò người dùng (US-31)"
+        title="Gán vai trò người dùng"
         description={`Cập nhật vai trò phân quyền cho tài khoản ${targetUser?.username}.`}
       >
         <form onSubmit={handleChangeRole} className="space-y-4">

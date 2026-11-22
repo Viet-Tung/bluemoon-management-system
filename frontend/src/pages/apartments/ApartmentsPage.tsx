@@ -7,13 +7,10 @@ import {
   RefreshCw,
   AlertCircle,
   Users,
-  ArrowRightLeft,
   UserCheck,
-  Ban,
-  ShieldCheck,
   CheckCircle,
 } from 'lucide-react';
-import { ApiClient, ApiError } from '../../api';
+import { ApiClient } from '../../api';
 import { Apartment, Household, HouseholdCreated } from '../../types';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
@@ -38,14 +35,14 @@ export const ApartmentsPage: React.FC = () => {
   const [addAptOpen, setAddAptOpen] = useState(false);
   const [aptCode, setAptCode] = useState('');
   const [aptFloor, setAptFloor] = useState(1);
-  const [aptArea, setAptArea] = useState(70);
+  const [aptArea, setAptArea] = useState('70');
   const [aptNote, setAptNote] = useState('');
 
   // Edit Apartment Modal
   const [editAptOpen, setEditAptOpen] = useState(false);
   const [selectedApt, setSelectedApt] = useState<Apartment | null>(null);
   const [editFloor, setEditFloor] = useState(1);
-  const [editArea, setEditArea] = useState(70);
+  const [editArea, setEditArea] = useState('70');
   const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
   const [editNote, setEditNote] = useState('');
 
@@ -68,6 +65,20 @@ export const ApartmentsPage: React.FC = () => {
   const [headCccd, setHeadCccd] = useState('');
   const [headPhone, setHeadPhone] = useState('');
   const [headEmail, setHeadEmail] = useState('');
+
+  // Edit Household Modal
+  const [editHhOpen, setEditHhOpen] = useState(false);
+  const [editHhTarget, setEditHhTarget] = useState<Household | null>(null);
+  const [editHhPhone, setEditHhPhone] = useState('');
+  const [editHhEmail, setEditHhEmail] = useState('');
+  const [editHhNote, setEditHhNote] = useState('');
+
+  // Change Household Head Modal
+  const [changeHeadOpen, setChangeHeadOpen] = useState(false);
+  const [changeHeadTarget, setChangeHeadTarget] = useState<Household | null>(null);
+  const [newHeadResidentId, setNewHeadResidentId] = useState<number | ''>('');
+  const [changeHeadDate, setChangeHeadDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [changeHeadReason, setChangeHeadReason] = useState('');
 
   // Created Household Result Modal (showing auto-generated resident account)
   const [createdHhResult, setCreatedHhResult] = useState<HouseholdCreated | null>(null);
@@ -110,18 +121,23 @@ export const ApartmentsPage: React.FC = () => {
   // Handle Add Apartment
   const handleAddApartment = async (e: React.FormEvent) => {
     e.preventDefault();
+    const area = parseFloat(aptArea);
+    if (isNaN(area) || area <= 0) {
+      toastError('Diện tích sàn phải lớn hơn 0.');
+      return;
+    }
     try {
       await ApiClient.createApartment({
         code: aptCode.trim(),
         floor: Number(aptFloor),
-        area_m2: Number(aptArea),
+        area_m2: area,
         note: aptNote.trim() || undefined,
       });
       success(`Đã thêm căn hộ ${aptCode.trim()} thành công!`);
       setAddAptOpen(false);
       setAptCode('');
       setAptFloor(1);
-      setAptArea(70);
+      setAptArea('70');
       setAptNote('');
       loadData();
     } catch (err: any) {
@@ -133,10 +149,15 @@ export const ApartmentsPage: React.FC = () => {
   const handleUpdateApartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedApt) return;
+    const area = parseFloat(editArea);
+    if (isNaN(area) || area <= 0) {
+      toastError('Diện tích sàn phải lớn hơn 0.');
+      return;
+    }
     try {
       await ApiClient.updateApartment(selectedApt.id, {
         floor: Number(editFloor),
-        area_m2: Number(editArea),
+        area_m2: area,
         status: editStatus,
         note: editNote.trim() || undefined,
       });
@@ -195,6 +216,49 @@ export const ApartmentsPage: React.FC = () => {
     }
   };
 
+  // Handle Update Household
+  const handleUpdateHousehold = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editHhTarget) return;
+    try {
+      await ApiClient.updateHousehold(editHhTarget.id, {
+        contact_phone: editHhPhone.trim() || undefined,
+        contact_email: editHhEmail.trim() || undefined,
+        note: editHhNote.trim() || undefined,
+      });
+      success(`Đã cập nhật thông tin hộ gia đình ${editHhTarget.household_code} thành công!`);
+      setEditHhOpen(false);
+      setEditHhTarget(null);
+      loadData();
+    } catch (err: any) {
+      toastError(err.message);
+    }
+  };
+
+  // Handle Change Household Head
+  const handleChangeHead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changeHeadTarget || !newHeadResidentId) {
+      toastError('Vui lòng nhập ID nhân khẩu chủ hộ mới.');
+      return;
+    }
+    try {
+      await ApiClient.changeHead(changeHeadTarget.id, {
+        new_head_resident_id: Number(newHeadResidentId),
+        effective_date: changeHeadDate,
+        reason: changeHeadReason.trim() || undefined,
+      });
+      success(`Đã thay đổi chủ hộ cho hộ ${changeHeadTarget.household_code} thành công!`);
+      setChangeHeadOpen(false);
+      setChangeHeadTarget(null);
+      setNewHeadResidentId('');
+      setChangeHeadReason('');
+      loadData();
+    } catch (err: any) {
+      toastError(err.message);
+    }
+  };
+
   // Handle Deactivate Household
   const handleDeactivateHousehold = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +285,7 @@ export const ApartmentsPage: React.FC = () => {
         effective_date: transferDate,
         reason: transferReason.trim() || undefined,
       });
-      success(`Chuyển nhượng căn hộ thành công! Hồ sơ cư trú mới đã có hiệu lực (US-03).`);
+      success(`Chuyển nhượng căn hộ thành công! Hồ sơ cư trú mới đã có hiệu lực.`);
       setTransferOpen(false);
       setTransferSourceHh(null);
       setTransferTargetHhId('');
@@ -252,6 +316,11 @@ export const ApartmentsPage: React.FC = () => {
 
   const availableFloors = Array.from(new Set(apartments.map((a) => a.floor))).sort((a, b) => a - b);
 
+  // Danh sách các hộ chưa có căn hộ để nhận chuyển nhượng
+  const availableTargetHouseholds = households.filter(
+    (h) => h.id !== transferSourceHh?.id && h.status === 'ACTIVE' && !h.apartment_code && !h.apartment_id
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -259,7 +328,7 @@ export const ApartmentsPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <Building2 className="w-6 h-6 text-blue-600" />
-            <span>Quản lý Căn hộ & Hộ gia đình (Sprint 1: US-01, US-02, US-03)</span>
+            <span>Quản lý Căn hộ & Hộ gia đình</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Khai báo căn hộ vật lý, danh sách hộ gia đình cư trú, chuyển nhượng và bàn giao theo quy trình chuẩn.
@@ -419,7 +488,7 @@ export const ApartmentsPage: React.FC = () => {
                             onClick={() => {
                               setSelectedApt(apt);
                               setEditFloor(apt.floor);
-                              setEditArea(apt.area_m2);
+                              setEditArea(String(apt.area_m2));
                               setEditStatus(apt.status);
                               setEditNote(apt.note || '');
                               setEditAptOpen(true);
@@ -517,16 +586,42 @@ export const ApartmentsPage: React.FC = () => {
                           </Badge>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             {hh.status === 'ACTIVE' && (
                               <>
+                                <button
+                                  onClick={() => {
+                                    setEditHhTarget(hh);
+                                    setEditHhPhone(hh.contact_phone || '');
+                                    setEditHhEmail(hh.contact_email || '');
+                                    setEditHhNote(hh.note || '');
+                                    setEditHhOpen(true);
+                                  }}
+                                  className="text-[11px] font-semibold text-slate-700 hover:text-blue-600 px-2 py-1 rounded hover:bg-slate-100 transition"
+                                  title="Chỉnh sửa thông tin liên hệ hộ gia đình"
+                                >
+                                  Sửa
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setChangeHeadTarget(hh);
+                                    setNewHeadResidentId(hh.head_resident_id || '');
+                                    setChangeHeadDate(new Date().toISOString().split('T')[0]);
+                                    setChangeHeadReason('');
+                                    setChangeHeadOpen(true);
+                                  }}
+                                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50 transition"
+                                  title="Thay đổi chủ hộ đại diện"
+                                >
+                                  Đổi chủ hộ
+                                </button>
                                 <button
                                   onClick={() => {
                                     setTransferSourceHh(hh);
                                     setTransferOpen(true);
                                   }}
                                   className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition"
-                                  title="Chuyển nhượng căn hộ sang hộ khác (US-03)"
+                                  title="Chuyển nhượng căn hộ sang hộ khác"
                                 >
                                   Chuyển nhượng
                                 </button>
@@ -536,7 +631,7 @@ export const ApartmentsPage: React.FC = () => {
                                     setDeactivateOpen(true);
                                   }}
                                   className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded hover:bg-rose-50 transition"
-                                  title="Ngừng quản lý hộ gia đình (US-02)"
+                                  title="Ngừng quản lý hộ gia đình"
                                 >
                                   Ngừng quản lý
                                 </button>
@@ -558,7 +653,7 @@ export const ApartmentsPage: React.FC = () => {
       <Modal
         isOpen={addAptOpen}
         onClose={() => setAddAptOpen(false)}
-        title="Khai báo căn hộ mới (US-01)"
+        title="Khai báo căn hộ mới"
         description="Đăng ký mã căn hộ và diện tích thực tế vào cơ sở dữ liệu."
       >
         <form onSubmit={handleAddApartment} className="space-y-4">
@@ -582,10 +677,10 @@ export const ApartmentsPage: React.FC = () => {
             <Input
               label="Diện tích (m²)"
               type="number"
-              step="0.1"
-              min="1"
+              step="any"
+              min="0.1"
               value={aptArea}
-              onChange={(e) => setAptArea(Number(e.target.value))}
+              onChange={(e) => setAptArea(e.target.value)}
               required
             />
           </div>
@@ -628,10 +723,10 @@ export const ApartmentsPage: React.FC = () => {
             <Input
               label="Diện tích (m²)"
               type="number"
-              step="0.1"
-              min="1"
+              step="any"
+              min="0.1"
               value={editArea}
-              onChange={(e) => setEditArea(Number(e.target.value))}
+              onChange={(e) => setEditArea(e.target.value)}
               required
             />
           </div>
@@ -669,7 +764,7 @@ export const ApartmentsPage: React.FC = () => {
       <Modal
         isOpen={addHhOpen}
         onClose={() => setAddHhOpen(false)}
-        title="Khai báo hộ gia đình mới (US-01, AC-30.2)"
+        title="Khai báo hộ gia đình mới"
         description="Tạo hồ sơ hộ gia đình và tự động cấp tài khoản truy cập Cư dân."
       >
         <form onSubmit={handleAddHousehold} className="space-y-4">
@@ -769,7 +864,93 @@ export const ApartmentsPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal: Kết quả tạo hộ & Tài khoản Cư dân (AC-30.2) */}
+      {/* Modal: Chỉnh sửa thông tin hộ gia đình */}
+      <Modal
+        isOpen={editHhOpen}
+        onClose={() => setEditHhOpen(false)}
+        title={`Chỉnh sửa thông tin hộ ${editHhTarget?.household_code}`}
+        description="Cập nhật thông tin liên hệ và ghi chú của hộ gia đình."
+      >
+        <form onSubmit={handleUpdateHousehold} className="space-y-4">
+          <Input
+            label="Số điện thoại liên hệ"
+            placeholder="Ví dụ: 0912345678"
+            value={editHhPhone}
+            onChange={(e) => setEditHhPhone(e.target.value)}
+          />
+
+          <Input
+            label="Email liên hệ"
+            type="email"
+            placeholder="Ví dụ: contact@bluemoon.local"
+            value={editHhEmail}
+            onChange={(e) => setEditHhEmail(e.target.value)}
+          />
+
+          <Input
+            label="Ghi chú"
+            placeholder="Ghi chú về hộ gia đình..."
+            value={editHhNote}
+            onChange={(e) => setEditHhNote(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setEditHhOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" type="submit">
+              Lưu thay đổi
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Đổi chủ hộ */}
+      <Modal
+        isOpen={changeHeadOpen}
+        onClose={() => setChangeHeadOpen(false)}
+        title={`Thay đổi chủ hộ đại diện - Hộ ${changeHeadTarget?.household_code}`}
+        description="Chỉ định nhân khẩu mới làm chủ hộ đại diện cho hộ gia đình."
+      >
+        <form onSubmit={handleChangeHead} className="space-y-4">
+          <Input
+            label="ID Nhân khẩu chủ hộ mới"
+            type="number"
+            min="1"
+            placeholder="Nhập mã ID của nhân khẩu trong hộ..."
+            value={newHeadResidentId}
+            onChange={(e) => setNewHeadResidentId(e.target.value ? Number(e.target.value) : '')}
+            required
+            helperText="Nhập ID nhân khẩu đang thường trú thuộc hộ này"
+          />
+
+          <Input
+            label="Ngày có hiệu lực"
+            type="date"
+            value={changeHeadDate}
+            onChange={(e) => setChangeHeadDate(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Lý do thay đổi chủ hộ"
+            placeholder="Ví dụ: Thay đổi chủ hộ theo thỏa thuận gia đình..."
+            value={changeHeadReason}
+            onChange={(e) => setChangeHeadReason(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setChangeHeadOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" type="submit">
+              Xác nhận đổi chủ hộ
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Kết quả tạo hộ & Tài khoản Cư dân */}
       {createdHhResult && (
         <Modal
           isOpen={true}
@@ -791,7 +972,7 @@ export const ApartmentsPage: React.FC = () => {
             {createdHhResult.resident_account && (
               <div className="p-4 bg-slate-900 text-white rounded-2xl space-y-2 text-xs">
                 <p className="font-bold text-amber-400 uppercase tracking-wider text-[11px]">
-                  Tài khoản Cư Dân tự động cấp (US-30.2):
+                  Tài khoản Cư dân khởi tạo tự động:
                 </p>
                 <div className="flex justify-between items-center py-1 border-b border-slate-800">
                   <span className="text-slate-400">Tên đăng nhập:</span>
@@ -818,11 +999,11 @@ export const ApartmentsPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Modal: Chuyển nhượng căn hộ (US-03) */}
+      {/* Modal: Chuyển nhượng căn hộ */}
       <Modal
         isOpen={transferOpen}
         onClose={() => setTransferOpen(false)}
-        title="Chuyển nhượng quyền cư trú căn hộ (US-03)"
+        title="Chuyển nhượng quyền cư trú căn hộ"
         description={`Chuyển nhượng căn hộ ${transferSourceHh?.apartment_code} từ hộ ${transferSourceHh?.household_code} sang hộ mới.`}
       >
         <form onSubmit={handleTransfer} className="space-y-4">
@@ -836,14 +1017,16 @@ export const ApartmentsPage: React.FC = () => {
               className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
               required
             >
-              <option value="">-- Chọn hộ gia đình mới --</option>
-              {households
-                .filter((h) => h.id !== transferSourceHh?.id && h.status === 'ACTIVE')
-                .map((h) => (
+              <option value="">-- Chọn hộ gia đình mới (chưa có căn hộ) --</option>
+              {availableTargetHouseholds.length === 0 ? (
+                <option value="" disabled>Không có hộ gia đình nào chưa có căn hộ</option>
+              ) : (
+                availableTargetHouseholds.map((h) => (
                   <option key={h.id} value={h.id}>
                     {h.household_code} - {h.head_name || 'Chưa rõ chủ hộ'}
                   </option>
-                ))}
+                ))
+              )}
             </select>
           </div>
 
@@ -873,11 +1056,11 @@ export const ApartmentsPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal: Ngừng quản lý hộ gia đình (US-02) */}
+      {/* Modal: Ngừng quản lý hộ gia đình */}
       <Modal
         isOpen={deactivateOpen}
         onClose={() => setDeactivateOpen(false)}
-        title="Ngừng quản lý hộ gia đình (US-02)"
+        title="Ngừng quản lý hộ gia đình"
         description={`Bạn có chắc muốn chuyển trạng thái hộ ${targetHh?.household_code} sang ngừng hoạt động (INACTIVE)?`}
       >
         <form onSubmit={handleDeactivateHousehold} className="space-y-4">

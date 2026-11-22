@@ -3,6 +3,7 @@ import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api';
 
 interface ChangePasswordModalProps {
@@ -17,6 +18,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   isFirstLogin = false,
 }) => {
   const { success, error } = useToast();
+  const { logout, refreshUser } = useAuth();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,8 +27,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isFirstLogin && !oldPassword) {
-      error('Vui lòng nhập mật khẩu cũ.');
+    if (!oldPassword) {
+      error(isFirstLogin ? 'Vui lòng nhập mật khẩu tạm thời đã cấp.' : 'Vui lòng nhập mật khẩu hiện tại.');
       return;
     }
 
@@ -36,7 +38,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     }
 
     if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      error('Mật khẩu mới phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số (AC-29.1).');
+      error('Mật khẩu mới phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.');
       return;
     }
 
@@ -52,6 +54,9 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      if (isFirstLogin) {
+        await refreshUser();
+      }
       onClose();
     } catch (err: any) {
       error(err.message || 'Không thể đổi mật khẩu.');
@@ -64,36 +69,43 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      preventClose={isFirstLogin}
       title={isFirstLogin ? 'Bắt buộc đổi mật khẩu lần đầu' : 'Đổi mật khẩu cá nhân'}
       description={
         isFirstLogin
-          ? 'Vì lý do an toàn bảo mật (AC-29.2), tài khoản bắt buộc phải đổi mật khẩu mới trong lần đăng nhập đầu tiên.'
+          ? 'Vì lý do an toàn bảo mật, tài khoản bắt buộc phải đổi mật khẩu mới trong lần đăng nhập đầu tiên.'
           : 'Cập nhật mật khẩu định kỳ để bảo vệ tài khoản của bạn.'
       }
       footer={
         <>
-          {!isFirstLogin && (
+          {isFirstLogin ? (
+            <Button variant="outline" onClick={logout} type="button">
+              Đăng xuất
+            </Button>
+          ) : (
             <Button variant="outline" onClick={onClose} type="button">
               Hủy bỏ
             </Button>
           )}
           <Button variant="primary" onClick={handleSubmit} isLoading={loading} type="submit">
-            Cập nhật mật khẩu
+            {isFirstLogin ? 'Kích hoạt tài khoản' : 'Cập nhật mật khẩu'}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {!isFirstLogin && (
-          <Input
-            label="Mật khẩu hiện tại"
-            type="password"
-            placeholder="Nhập mật khẩu cũ..."
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            required
-          />
-        )}
+        <Input
+          label={isFirstLogin ? 'Mật khẩu tạm thời đã cấp' : 'Mật khẩu hiện tại'}
+          type="password"
+          placeholder={
+            isFirstLogin
+              ? 'Nhập mật khẩu tạm thời bạn vừa dùng để đăng nhập...'
+              : 'Nhập mật khẩu cũ...'
+          }
+          value={oldPassword}
+          onChange={(e) => setOldPassword(e.target.value)}
+          required
+        />
         <Input
           label="Mật khẩu mới"
           type="password"
@@ -112,7 +124,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         />
 
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
-          <p className="font-semibold text-slate-700">Quy chuẩn mật khẩu an toàn (AC-29.1):</p>
+          <p className="font-semibold text-slate-700">Quy chuẩn mật khẩu an toàn:</p>
           <ul className="list-disc pl-4 space-y-0.5">
             <li>Độ dài tối thiểu 8 ký tự</li>
             <li>Có ít nhất 1 chữ in hoa (A-Z) và 1 chữ thường (a-z)</li>

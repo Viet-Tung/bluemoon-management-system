@@ -4,8 +4,7 @@ import {
   Plus,
   RefreshCw,
   AlertCircle,
-  Ban,
-  CheckCircle,
+  Search,
 } from 'lucide-react';
 import { ApiClient } from '../../api';
 import { FeeType, FeeGroup, CalcMethod, FeeCycle } from '../../types';
@@ -22,6 +21,7 @@ export const FeeCatalogPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters
+  const [searchKw, setSearchKw] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [groupFilter, setGroupFilter] = useState<string>('ALL');
 
@@ -36,6 +36,15 @@ export const FeeCatalogPage: React.FC = () => {
   const [cycle, setCycle] = useState<FeeCycle>('MONTHLY');
   const [dueDay, setDueDay] = useState<number>(15);
   const [description, setDescription] = useState('');
+
+  // Edit Fee Modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedFee, setSelectedFee] = useState<FeeType | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editUnitLabel, setEditUnitLabel] = useState('');
+  const [editCycle, setEditCycle] = useState<FeeCycle>('MONTHLY');
+  const [editDueDay, setEditDueDay] = useState<number>(15);
+  const [editDescription, setEditDescription] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -90,10 +99,30 @@ export const FeeCatalogPage: React.FC = () => {
     }
   };
 
+  const handleUpdateFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFee) return;
+    try {
+      await ApiClient.updateFeeType(selectedFee.id, {
+        name: editName.trim(),
+        unit_label: editUnitLabel.trim(),
+        cycle: editCycle,
+        due_day: Number(editDueDay),
+        description: editDescription.trim() || undefined,
+      });
+      success(`Đã cập nhật khoản thu "${editName.trim()}" thành công!`);
+      setEditModalOpen(false);
+      setSelectedFee(null);
+      loadData();
+    } catch (err: any) {
+      toastError(err.message);
+    }
+  };
+
   const handleDeactivate = async (id: number, feeName: string) => {
     if (
       !window.confirm(
-        `Bạn có chắc muốn ngừng áp dụng khoản thu "${feeName}"? (Hệ thống không xóa vật lý dữ liệu cũ theo AC-13.1)`
+        `Bạn có chắc muốn ngừng áp dụng khoản thu "${feeName}"? (Dữ liệu cũ vẫn được lưu trong lịch sử)`
       )
     ) {
       return;
@@ -144,6 +173,16 @@ export const FeeCatalogPage: React.FC = () => {
     }
   };
 
+  const filteredFeeTypes = feeTypes.filter((f) => {
+    const q = searchKw.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      f.code.toLowerCase().includes(q) ||
+      f.name.toLowerCase().includes(q) ||
+      (f.description && f.description.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -151,7 +190,7 @@ export const FeeCatalogPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" />
-            <span>Danh mục Khoản thu & Biểu phí (Sprint 1: US-12, US-13)</span>
+            <span>Danh mục Khoản thu & Biểu phí</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Cấu hình các danh mục phí bắt buộc: phí quản lý theo diện tích sàn, phí giữ xe, phí dịch vụ tòa nhà.
@@ -196,7 +235,17 @@ export const FeeCatalogPage: React.FC = () => {
       )}
 
       {/* Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-2xl border border-slate-200">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-2xl border border-slate-200">
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tìm kiếm</label>
+          <Input
+            placeholder="Tìm theo tên hoặc mã phí..."
+            value={searchKw}
+            onChange={(e) => setSearchKw(e.target.value)}
+            icon={<Search className="w-4 h-4" />}
+          />
+        </div>
+
         <div>
           <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nhóm khoản thu</label>
           <select
@@ -230,7 +279,7 @@ export const FeeCatalogPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Danh mục khoản thu trong hệ thống</h3>
-          <span className="text-xs text-slate-500 font-mono">Tổng số: {feeTypes.length} loại phí</span>
+          <span className="text-xs text-slate-500 font-mono">Tổng số: {filteredFeeTypes.length} loại phí</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -249,14 +298,14 @@ export const FeeCatalogPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {feeTypes.length === 0 ? (
+              {filteredFeeTypes.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-slate-400">
-                    {loading ? 'Đang tải danh mục khoản thu...' : 'Không có khoản thu nào.'}
+                    {loading ? 'Đang tải danh mục khoản thu...' : 'Không có khoản thu nào phù hợp.'}
                   </td>
                 </tr>
               ) : (
-                feeTypes.map((fee) => (
+                filteredFeeTypes.map((fee) => (
                   <tr key={fee.id} className="hover:bg-slate-50">
                     <td className="py-3.5 px-4 font-mono font-bold text-blue-700">{fee.code}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900">
@@ -291,13 +340,30 @@ export const FeeCatalogPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       {fee.status === 'ACTIVE' && (
-                        <button
-                          onClick={() => handleDeactivate(fee.id, fee.name)}
-                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded hover:bg-rose-50 transition"
-                          title="Ngừng áp dụng khoản thu (US-13, AC-13.1)"
-                        >
-                          Ngừng áp dụng
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setSelectedFee(fee);
+                              setEditName(fee.name);
+                              setEditUnitLabel(fee.unit_label);
+                              setEditCycle(fee.cycle);
+                              setEditDueDay(fee.due_day || 15);
+                              setEditDescription(fee.description || '');
+                              setEditModalOpen(true);
+                            }}
+                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition"
+                            title="Chỉnh sửa thông tin khoản thu"
+                          >
+                            Chỉnh sửa
+                          </button>
+                          <button
+                            onClick={() => handleDeactivate(fee.id, fee.name)}
+                            className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded hover:bg-rose-50 transition"
+                            title="Ngừng áp dụng khoản thu"
+                          >
+                            Ngừng áp dụng
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -312,7 +378,7 @@ export const FeeCatalogPage: React.FC = () => {
       <Modal
         isOpen={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        title="Tạo khoản thu bắt buộc mới (US-12)"
+        title="Tạo khoản thu bắt buộc mới"
         description="Đăng ký thêm loại phí áp dụng cho cư dân tòa nhà."
       >
         <form onSubmit={handleAddFee} className="space-y-4">
@@ -409,6 +475,72 @@ export const FeeCatalogPage: React.FC = () => {
             </Button>
             <Button variant="primary" type="submit">
               Xác nhận lưu
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Edit Fee Type */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={`Chỉnh sửa khoản thu: ${selectedFee?.code}`}
+        description="Cập nhật tên, đơn vị tính, chu kỳ và hạn nộp của khoản thu."
+      >
+        <form onSubmit={handleUpdateFee} className="space-y-4">
+          <Input
+            label="Tên khoản thu"
+            placeholder="Ví dụ: Phí quản lý vận hành tòa nhà..."
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Đơn vị tính"
+              placeholder="m², hộ, xe, kWh..."
+              value={editUnitLabel}
+              onChange={(e) => setEditUnitLabel(e.target.value)}
+              required
+            />
+            <Input
+              label="Hạn nộp phí hàng tháng (1-31)"
+              type="number"
+              min="1"
+              max="31"
+              value={editDueDay}
+              onChange={(e) => setEditDueDay(Number(e.target.value))}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chu kỳ thu phí</label>
+            <select
+              value={editCycle}
+              onChange={(e) => setEditCycle(e.target.value as any)}
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="MONTHLY">Hàng tháng</option>
+              <option value="QUARTERLY">Hàng quý</option>
+              <option value="YEARLY">Hàng năm</option>
+            </select>
+          </div>
+
+          <Input
+            label="Mô tả chi tiết"
+            placeholder="Căn cứ pháp lý, quy chế áp dụng..."
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setEditModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" type="submit">
+              Lưu thay đổi
             </Button>
           </div>
         </form>

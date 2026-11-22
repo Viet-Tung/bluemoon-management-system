@@ -10,6 +10,7 @@ import { FeeCatalogPage } from './pages/billing/FeeCatalogPage';
 import { UsersManagementPage } from './pages/admin/UsersManagementPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { SystemBackupPage } from './pages/admin/SystemBackupPage';
+import { RoleCode } from './types';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,6 +31,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const RoleRoute: React.FC<{ roles: RoleCode[]; children: React.ReactNode }> = ({ roles, children }) => {
+  const { hasRole, isLoading } = useAuth();
+
+  if (isLoading) return null;
+
+  if (!hasRole(...roles)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const AppContent: React.FC = () => {
   return (
     <Routes>
@@ -45,13 +58,48 @@ export const AppContent: React.FC = () => {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="apartments" element={<ApartmentsPage />} />
-        <Route path="fee-catalog" element={<FeeCatalogPage />} />
+        <Route
+          path="apartments"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <ApartmentsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="fee-catalog"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <FeeCatalogPage />
+            </RoleRoute>
+          }
+        />
 
-        {/* Admin Management (Sprint 1) */}
-        <Route path="admin/users" element={<UsersManagementPage />} />
-        <Route path="admin/audit-logs" element={<AuditLogsPage />} />
-        <Route path="admin/backups" element={<SystemBackupPage />} />
+        {/* Admin Management */}
+        <Route
+          path="admin/users"
+          element={
+            <RoleRoute roles={['ADMIN']}>
+              <UsersManagementPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/audit-logs"
+          element={
+            <RoleRoute roles={['ADMIN']}>
+              <AuditLogsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/backups"
+          element={
+            <RoleRoute roles={['ADMIN']}>
+              <SystemBackupPage />
+            </RoleRoute>
+          }
+        />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>

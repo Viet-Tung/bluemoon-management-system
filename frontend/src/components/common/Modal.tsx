@@ -9,6 +9,7 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  preventClose?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,10 +20,11 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   size = 'md',
+  preventClose = false,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !preventClose) onClose();
     };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -32,7 +34,7 @@ export const Modal: React.FC<ModalProps> = ({
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, preventClose]);
 
   if (!isOpen) return null;
 
@@ -49,7 +51,9 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
+        onClick={() => {
+          if (!preventClose) onClose();
+        }}
       />
 
       {/* Modal Dialog */}
@@ -62,12 +66,14 @@ export const Modal: React.FC<ModalProps> = ({
             <h3 className="text-base font-semibold text-slate-900">{title}</h3>
             {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!preventClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Content Body */}
