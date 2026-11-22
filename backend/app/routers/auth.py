@@ -90,11 +90,10 @@ def login(
                 message=f"Tài khoản đã bị tạm khóa {settings.ACCOUNT_LOCKOUT_MINUTES} phút do nhập sai mật khẩu {settings.MAX_FAILED_LOGIN_ATTEMPTS} lần liên tiếp.",
             )
         db.commit()
-        remaining_attempts = settings.MAX_FAILED_LOGIN_ATTEMPTS - user.failed_login_count
         raise AppAPIException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="INVALID_CREDENTIALS",
-            message=f"Tên đăng nhập hoặc mật khẩu không chính xác. Bạn còn {remaining_attempts} lần thử.",
+            message="Tên đăng nhập hoặc mật khẩu không chính xác.",
         )
 
     # 4. Đăng nhập thành công -> Reset đếm lỗi và cập nhật thời điểm đăng nhập
