@@ -138,7 +138,7 @@ erDiagram
 #### 8. `apartment_occupancies` (Lịch sử cư trú Căn hộ - Hộ)
 * Bảng liên kết trung gian lưu vết hộ nào ở căn hộ nào trong khoảng thời gian nào.
 * **Cột chính:** `id` (bigint, PK), `apartment_id` (FK), `household_id` (FK), `start_date`, `end_date` (NULL nếu đang ở), `end_reason`.
-* **Ràng buộc:** `EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[]') WITH &&)` chặn hoàn toàn lỗi nghiệp vụ: không thể có 2 hộ cùng cư trú tại 1 căn hộ trong cùng một ngày.
+* **Ràng buộc:** `EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[)') WITH &&)` chặn hoàn toàn lỗi nghiệp vụ: không thể có 2 hộ cùng cư trú tại 1 căn hộ trong cùng một khoảng thời gian. Khoảng nửa mở cho phép chuyển giao nhiều lần trong cùng ngày.
 
 #### 9. `residents` (Nhân khẩu thường trú)
 * Danh sách nhân khẩu trong hộ gia đình.

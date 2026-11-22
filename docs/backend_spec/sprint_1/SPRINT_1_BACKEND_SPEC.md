@@ -129,7 +129,7 @@ Khớp 100% định nghĩa tại `database/01_schema.sql`:
    - `end_date`: date (Nullable: `NULL` = đang cư trú)
    - `end_reason`: text (Nullable)
    - Ràng buộc: `CHECK (end_date IS NULL OR end_date >= start_date)`
-   - Chỉ mục loại trừ: `EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[]') WITH &&)`
+   - Chỉ mục loại trừ: `EXCLUDE USING gist (apartment_id WITH =, daterange(start_date, end_date, '[)') WITH &&)`
 8. **`residents`** (Nhân khẩu thường trú trong hộ):
    - `id`: bigint (Identity PK)
    - `household_id`: bigint (FK -> `households.id`)
