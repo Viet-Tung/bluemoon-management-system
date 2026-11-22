@@ -49,10 +49,10 @@ export const AuditLogsPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-blue-600" />
-            <span>Nhật Ký Thao Tác Kiểm Toán Bất Biến (Sprint 1: US-32)</span>
+            <span>Nhật ký hoạt động hệ thống</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Lưu vết minh bạch các hành vi nhạy cảm: thay đổi vai trò, khóa tài khoản, tạo hộ gia đình, chuyển nhượng căn hộ.
+            Lưu vết minh bạch các hành vi quan trọng: thay đổi vai trò, khóa tài khoản, tạo hộ gia đình, chuyển nhượng căn hộ.
           </p>
         </div>
 

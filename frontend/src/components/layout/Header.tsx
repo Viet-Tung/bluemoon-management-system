@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, LogOut, KeyRound, ChevronDown, UserCheck } from 'lucide-react';
+import { Menu, LogOut, KeyRound, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../common/Badge';
 
