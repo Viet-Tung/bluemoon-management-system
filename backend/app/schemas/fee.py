@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -119,3 +119,46 @@ class FeeType(BaseModel):
 class FeeTypePage(PageMeta):
     """Phân trang danh sách khoản thu."""
     items: List[FeeType] = Field(default_factory=list)
+
+
+class FeeRateCreate(BaseModel):
+    """Dữ liệu yêu cầu tạo đơn giá mới cho khoản thu (US-14)."""
+    model_config = ConfigDict(extra="ignore")
+
+    unit_price: int = Field(..., ge=0, description="Đơn giá (VNĐ, tối thiểu 0)")
+    effective_from: date = Field(..., description="Ngày bắt đầu có hiệu lực (YYYY-MM-DD)")
+
+    # [SỬA] Chặn giá trị boolean (True/False) và số thập phân lẻ (vd 7500.9) trước khi ép sang int
+    @field_validator("unit_price", mode="before")
+    @classmethod
+    def convert_unit_price(cls, v):
+        if isinstance(v, bool):
+            raise ValueError("Đơn giá phải là số nguyên hợp lệ.")
+        if isinstance(v, float) and not v.is_integer():
+            raise ValueError("Đơn giá VNĐ phải là số nguyên, không chứa phần thập phân.")
+        if v is not None:
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                raise ValueError("Đơn giá phải là số nguyên hợp lệ.")
+        return v
+
+
+class FeeRate(BaseModel):
+    """Thông tin đơn giá của khoản thu theo ngày hiệu lực (US-14)."""
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    id: int = Field(..., description="Mã định danh đơn giá")
+    fee_type_id: int = Field(..., description="Mã khoản thu liên kết")
+    unit_price: int = Field(..., ge=0, description="Đơn giá (VNĐ)")
+    effective_from: date = Field(..., description="Ngày bắt đầu có hiệu lực")
+    effective_to: Optional[date] = Field(default=None, description="Ngày kết thúc hiệu lực (NULL = đang áp dụng)")
+    created_by: Optional[int] = Field(default=None, description="ID người tạo bản ghi")
+    created_at: datetime = Field(..., description="Thời gian tạo bản ghi")
+
+    @field_validator("unit_price", mode="before")
+    @classmethod
+    def convert_unit_price(cls, v):
+        if v is not None:
+            return int(v)
+        return v

@@ -1,15 +1,18 @@
-from datetime import date
-from typing import Any, Dict, Optional
+from datetime import date, timedelta
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select  # [SỬA] Bỏ text, thêm or_ để dùng ORM cho get_current_unit_price
+from sqlalchemy.exc import IntegrityError  # [SỬA] Thêm IntegrityError để bắt lỗi xung đột đồng thời trên DB
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, require_roles
-from app.models.fee import FeeType
+from app.models.fee import FeeRate, FeeType
 from app.models.user import AuditLog, User
 from app.schemas.fee import (
     FeeGroup,
+    FeeRate as FeeRateSchema,
+    FeeRateCreate,
     FeeStatus,
     FeeType as FeeTypeSchema,
     FeeTypeCreate,
@@ -20,24 +23,22 @@ from app.schemas.fee import (
 router = APIRouter(tags=["Fee catalog"])
 
 
+# [SỬA] Chuyển từ raw SQL (text) sang SQLAlchemy ORM cho đồng bộ với model FeeRate
 def get_current_unit_price(db: Session, fee_type_id: int) -> Optional[int]:
-    """Tra cứu đơn giá đang có hiệu lực trong ngày hiện tại nếu đã có bảng fee_rates."""
-    try:
-        today = date.today()
-        stmt = text("""
-            SELECT unit_price FROM fee_rates
-            WHERE fee_type_id = :id
-              AND effective_from <= :today
-              AND (effective_to IS NULL OR effective_to >= :today)
-            ORDER BY effective_from DESC, id DESC
-            LIMIT 1
-        """)
-        row = db.execute(stmt, {"id": fee_type_id, "today": today}).fetchone()
-        if row and row[0] is not None:
-            return int(row[0])
-    except Exception:
-        pass
-    return None
+    """Tra cứu đơn giá đang có hiệu lực trong ngày hiện tại."""
+    today = date.today()
+    stmt = (
+        select(FeeRate.unit_price)
+        .where(
+            FeeRate.fee_type_id == fee_type_id,
+            FeeRate.effective_from <= today,
+            or_(FeeRate.effective_to.is_(None), FeeRate.effective_to >= today),
+        )
+        .order_by(FeeRate.effective_from.desc(), FeeRate.id.desc())
+        .limit(1)
+    )
+    val = db.scalar(stmt)
+    return int(val) if val is not None else None
 
 
 @router.get(
@@ -231,7 +232,6 @@ def update_fee_type(
         "provider_id": fee_type.provider_id,
     }
 
-    # Cập nhật các trường được phép trong FeeTypeUpdate
     if req.name is not None:
         fee_type.name = req.name.strip()
     if req.unit_label is not None:
@@ -245,7 +245,6 @@ def update_fee_type(
     if req.description is not None:
         fee_type.description = req.description.strip() if req.description else None
 
-    # Ghi nhận Audit Log (AC-32.1)
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
     new_state: Dict[str, Any] = {
@@ -320,3 +319,175 @@ def deactivate_fee_type(
 
     fee_type.current_unit_price = get_current_unit_price(db, fee_type.id)
     return FeeTypeSchema.model_validate(fee_type)
+
+
+@router.get(
+    "/{id:int}/rates",
+    response_model=List[FeeRateSchema],
+    status_code=status.HTTP_200_OK,
+    summary="Lịch sử đơn giá của khoản thu",
+    description="Lấy danh sách lịch sử đơn giá theo ngày hiệu lực của khoản thu (US-14). Phân quyền: ADMIN, ACCOUNTANT.",
+)
+def list_fee_rates(
+    id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+) -> List[FeeRateSchema]:
+    """Lấy danh sách toàn bộ lịch sử đơn giá của khoản thu, sắp xếp theo ngày hiệu lực giảm dần."""
+    fee_type = db.get(FeeType, id)
+    if not fee_type:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy khoản thu với ID {id}."
+        )
+
+    stmt = (
+        select(FeeRate)
+        .where(FeeRate.fee_type_id == id)
+        .order_by(FeeRate.effective_from.desc(), FeeRate.id.desc())
+    )
+    rates = db.scalars(stmt).all()
+    return [FeeRateSchema.model_validate(r) for r in rates]
+
+
+@router.post(
+    "/{id:int}/rates",
+    response_model=FeeRateSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cập nhật đơn giá mới",
+    description="Cập nhật đơn giá mới kèm ngày bắt đầu hiệu lực (US-14). Tự động khép đơn giá đang áp dụng trước đó vào ngày trước ngày hiệu lực mới. Phân quyền: ADMIN, ACCOUNTANT.",
+)
+def create_fee_rate(
+    id: int,
+    req: FeeRateCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+) -> FeeRateSchema:
+    """
+    Cập nhật đơn giá mới cho khoản thu (US-14, AC-14.1):
+    - Kiểm tra xung đột ngày hiệu lực (RATE_OVERLAP, HTTP 409).
+    - Đơn giá đang áp dụng (effective_to IS NULL) được tự khép lại vào ngày trước req.effective_from.
+    - Ghi nhận Audit Log (action=CREATE_FEE_RATE).
+    """
+    fee_type = db.get(FeeType, id)
+    if not fee_type:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message=f"Không tìm thấy khoản thu với ID {id}."
+        )
+
+    if req.unit_price < 0:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Đơn giá phải là số nguyên không âm (>= 0).",
+            details=[{"field": "unit_price", "message": "Đơn giá phải lớn hơn hoặc bằng 0."}]
+        )
+
+    # Lấy tất cả các đơn giá hiện có của khoản thu này
+    existing_rates = db.scalars(
+        select(FeeRate)
+        .where(FeeRate.fee_type_id == id)
+        .order_by(FeeRate.effective_from.asc())
+    ).all()
+
+    active_rate = next((r for r in existing_rates if r.effective_to is None), None)
+
+    # [SỬA] Đẩy toàn bộ bước kiểm tra xung đột lên TRƯỚC khi thay đổi dữ liệu trong session
+    if active_rate and req.effective_from <= active_rate.effective_from:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="RATE_OVERLAP",
+            message=f"Ngày bắt đầu hiệu lực ({req.effective_from}) phải sau ngày bắt đầu của đơn giá hiện tại ({active_rate.effective_from}).",
+            details=[{
+                "field": "effective_from",
+                "message": f"Xung đột với đơn giá đang áp dụng từ {active_rate.effective_from}."
+            }]
+        )
+
+    for r in existing_rates:
+        if r is active_rate:
+            continue
+        if r.effective_to is not None and r.effective_from <= req.effective_from <= r.effective_to:
+            raise AppAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="RATE_OVERLAP",
+                message=f"Ngày hiệu lực ({req.effective_from}) bị chồng lấn với đơn giá từ {r.effective_from} đến {r.effective_to}.",
+                details=[{
+                    "field": "effective_from",
+                    "message": f"Nằm trong khoảng [{r.effective_from}, {r.effective_to}]."
+                }]
+            )
+        if r.effective_from >= req.effective_from:
+            raise AppAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="RATE_OVERLAP",
+                message=f"Ngày hiệu lực ({req.effective_from}) bị chồng lấn với đơn giá hiệu lực từ {r.effective_from}.",
+                details=[{
+                    "field": "effective_from",
+                    "message": f"Đơn giá ID {r.id} đã bắt đầu từ {r.effective_from}."
+                }]
+            )
+
+    # [SỬA] Bọc transaction trong try/except IntegrityError và thêm db.flush() sau khi khép đơn giá cũ
+    try:
+        old_state = None
+        if active_rate:
+            old_state = {
+                "rate_id": active_rate.id,
+                "unit_price": int(active_rate.unit_price),
+                "effective_from": str(active_rate.effective_from),
+                "effective_to": None,
+            }
+            active_rate.effective_to = req.effective_from - timedelta(days=1)
+            db.flush()  # [SỬA] Ép chạy UPDATE trước INSERT để không vướng EXCLUDE USING gist trên PostgreSQL
+
+        new_rate = FeeRate(
+            fee_type_id=id,
+            unit_price=req.unit_price,
+            effective_from=req.effective_from,
+            effective_to=None,
+            created_by=current_user.id,
+        )
+        db.add(new_rate)
+        db.flush()
+
+        # Ghi nhận Audit Log (AC-14.1, US-32)
+        client_ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent")
+        new_state = {
+            "rate_id": new_rate.id,
+            "fee_type_id": id,
+            "fee_type_code": fee_type.code,
+            "unit_price": req.unit_price,
+            "effective_from": str(req.effective_from),
+            "effective_to": None,
+        }
+
+        audit = AuditLog(
+            user_id=current_user.id,
+            action="CREATE_FEE_RATE",
+            entity_type="FEE_RATE",
+            entity_id=str(new_rate.id),
+            old_value=old_state,
+            new_value=new_state,
+            reason=f"Cập nhật đơn giá mới {req.unit_price:,} VNĐ cho khoản thu '{fee_type.code}' có hiệu lực từ {req.effective_from} (tự động khép đơn giá cũ).",
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+        db.add(audit)
+        db.commit()
+        db.refresh(new_rate)
+
+        return FeeRateSchema.model_validate(new_rate)
+
+    except IntegrityError:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="RATE_OVERLAP",
+            message="Xung đột khoảng thời gian hiệu lực đơn giá trên cơ sở dữ liệu.",
+        )

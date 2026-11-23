@@ -1,15 +1,19 @@
-from datetime import datetime
-from typing import Optional
+from datetime import date, datetime
+from typing import List, Optional
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
+    DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     SmallInteger,
     String,
     Text,
+    func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 
@@ -44,6 +48,13 @@ class FeeType(Base, TimestampMixin):
         nullable=True
     )
 
+    rates: Mapped[List["FeeRate"]] = relationship(
+        "FeeRate",
+        back_populates="fee_type",
+        cascade="all, delete-orphan",
+        order_by="desc(FeeRate.effective_from)",
+    )
+
     @property
     def current_unit_price(self) -> Optional[int]:
         return getattr(self, "_current_unit_price", None)
@@ -51,4 +62,48 @@ class FeeType(Base, TimestampMixin):
     @current_unit_price.setter
     def current_unit_price(self, val: Optional[int]):
         self._current_unit_price = val
+
+
+class FeeRate(Base):
+    """Bảng fee_rates (US-14): Lịch sử đơn giá theo ngày hiệu lực."""
+    __tablename__ = "fee_rates"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    fee_type_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("fee_types.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    unit_price: Mapped[float] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+    )
+    effective_from: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+    effective_to: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+        index=True,
+    )
+    created_by: Mapped[Optional[int]] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    fee_type: Mapped["FeeType"] = relationship("FeeType", back_populates="rates")
+
 
