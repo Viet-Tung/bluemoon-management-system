@@ -13,6 +13,7 @@ from app.routers import (
     auth_router,
     fee_types_router,
     households_router,
+    residents_router,
     roles_router,
     system_router,
     users_router,
@@ -124,6 +125,8 @@ app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users")
 app.include_router(audit_logs_router, prefix=f"{settings.API_V1_STR}/audit-logs")
 app.include_router(apartments_router, prefix=f"{settings.API_V1_STR}/apartments")
 app.include_router(households_router, prefix=f"{settings.API_V1_STR}/households")
+app.include_router(residents_router, prefix=f"{settings.API_V1_STR}")
+app.include_router(residents_router, prefix="", include_in_schema=False)
 app.include_router(fee_types_router, prefix=f"{settings.API_V1_STR}/fee-types")
 app.include_router(fee_types_router, prefix="/fee-types", include_in_schema=False)
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system")
