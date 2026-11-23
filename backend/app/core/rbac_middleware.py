@@ -1,6 +1,6 @@
 from typing import Callable, List, Optional
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 import jwt
@@ -10,7 +10,8 @@ from app.core.security import decode_access_token
 from app.models.user import AuditLog, User
 from app.schemas.auth import TokenPayload
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=False)
+oauth2_scheme = bearer_scheme  # backward compatibility alias
 
 
 class AppAPIException(HTTPException):
@@ -34,18 +35,19 @@ class AppAPIException(HTTPException):
 
 def get_current_user(
     request: Request,
-    token: Optional[str] = Depends(oauth2_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ) -> User:
     """
     Authenticate request via JWT Bearer Token.
     Returns the authenticated User model with associated Role.
     """
+    token = credentials.credentials if credentials else None
     if not token:
         # Check header manually if auto_error=False
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header[7:]
+            token = auth_header[7:].strip()
 
     if not token:
         raise AppAPIException(

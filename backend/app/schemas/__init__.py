@@ -41,6 +41,13 @@ from app.schemas.household import (
     ResidentAccount,
     ResidentCreate,
 )
+from app.schemas.import_data import ImportResult
+from app.schemas.resident import (
+    ResidentBase,
+    ResidentPage,
+    ResidentResponse,
+    ResidentUpdate,
+)
 from app.schemas.system import (
     BackupJob,
     BackupJobPage,
@@ -80,6 +87,11 @@ __all__ = [
     "ApartmentPage",
     "ResidentAccount",
     "ResidentCreate",
+    "ResidentBase",
+    "ResidentResponse",
+    "ResidentPage",
+    "ResidentUpdate",
+    "ImportResult",
     "HouseholdCreate",
     "HouseholdUpdate",
     "HouseholdDeactivate",
