@@ -1,7 +1,7 @@
 from app.models.base import Base, TimestampMixin
 from app.models.user import Role, User, AuditLog, BackupJob
 from app.models.property import Apartment, Household, ApartmentOccupancy, Resident
-from app.models.fee import FeeType
+from app.models.fee import FeeRate, FeeType
 
 __all__ = [
     "Base",
@@ -15,4 +15,5 @@ __all__ = [
     "ApartmentOccupancy",
     "Resident",
     "FeeType",
+    "FeeRate",
 ]
