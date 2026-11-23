@@ -11,6 +11,7 @@ from app.routers import (
     apartments_router,
     audit_logs_router,
     auth_router,
+    billing_router,
     fee_exemptions_router,
     fee_types_router,
     households_router,
@@ -138,6 +139,8 @@ app.include_router(fee_exemptions_router, prefix=f"{settings.API_V1_STR}/fee-exe
 app.include_router(fee_exemptions_router, prefix="/fee-exemptions", include_in_schema=False)
 app.include_router(vehicles_router, prefix=f"{settings.API_V1_STR}/vehicles")
 app.include_router(vehicles_router, prefix="/vehicles", include_in_schema=False)
+app.include_router(billing_router, prefix=f"{settings.API_V1_STR}")
+app.include_router(billing_router, prefix="", include_in_schema=False)
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system")
 app.include_router(system_router, prefix="/system", include_in_schema=False)
 

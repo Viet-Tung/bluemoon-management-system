@@ -207,11 +207,17 @@ def load_debug_db(db_session):
 
     yield
 
-    # Teardown: ensure user 1 must_change_password is reset to 0 and drop invoices
+    # Teardown: ensure user 1 must_change_password is reset to 0 and clean domain tables
     try:
         db_session.execute(text("UPDATE users SET must_change_password = 0, is_active = 1 WHERE id = 1"))
-        db_session.execute(text("DROP TABLE IF EXISTS invoice_items"))
-        db_session.execute(text("DROP TABLE IF EXISTS invoices"))
+        for tbl in [
+            "invoice_items", "invoices", "apartment_occupancies",
+            "residents", "households", "apartments", "audit_logs"
+        ]:
+            try:
+                db_session.execute(text(f"DELETE FROM {tbl}"))
+            except Exception:
+                pass
         db_session.commit()
     except Exception:
         db_session.rollback()
