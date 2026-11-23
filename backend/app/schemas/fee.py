@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
+import math  # [SỬA] Thêm math để kiểm tra số hữu hạn (chặn NaN và Infinity)
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -36,6 +37,16 @@ class FeeCycle(str, Enum):
 class FeeStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
+
+
+class DiscountType(str, Enum):
+    PERCENT = "PERCENT"
+    AMOUNT = "AMOUNT"
+
+
+class ExemptionStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    REVOKED = "REVOKED"
 
 
 class FeeTypeBase(BaseModel):
@@ -128,7 +139,6 @@ class FeeRateCreate(BaseModel):
     unit_price: int = Field(..., ge=0, description="Đơn giá (VNĐ, tối thiểu 0)")
     effective_from: date = Field(..., description="Ngày bắt đầu có hiệu lực (YYYY-MM-DD)")
 
-    # [SỬA] Chặn giá trị boolean (True/False) và số thập phân lẻ (vd 7500.9) trước khi ép sang int
     @field_validator("unit_price", mode="before")
     @classmethod
     def convert_unit_price(cls, v):
@@ -162,3 +172,97 @@ class FeeRate(BaseModel):
         if v is not None:
             return int(v)
         return v
+
+
+class ExemptionCreate(BaseModel):
+    """Dữ liệu yêu cầu tạo chính sách miễn giảm phí (US-15)."""
+    model_config = ConfigDict(extra="ignore")
+
+    # [SỬA] Thêm gt=0 để chặn ID bằng 0 hoặc số âm
+    household_id: int = Field(..., gt=0, description="ID hộ gia đình được hưởng miễn giảm")
+    fee_type_id: int = Field(..., gt=0, description="ID khoản thu được miễn giảm")
+    discount_type: DiscountType = Field(..., description="Loại miễn giảm: PERCENT hoặc AMOUNT")
+    discount_value: float = Field(..., gt=0, description="Giá trị miễn giảm (> 0)")
+    reason: str = Field(..., min_length=1, description="Lý do miễn giảm")
+    # [SỬA] Thêm max_length=100 khớp với cột String(100) dưới DB để tránh lỗi DataError 500
+    decision_no: Optional[str] = Field(default=None, max_length=100, description="Số quyết định phê duyệt")
+    valid_from: date = Field(..., description="Ngày bắt đầu có hiệu lực (YYYY-MM-DD)")
+    valid_to: Optional[date] = Field(default=None, description="Ngày kết thúc hiệu lực (NULL = không thời hạn)")
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Lý do miễn giảm không được để trống hoặc chỉ chứa khoảng trắng.")
+        return s
+
+    @field_validator("decision_no")
+    @classmethod
+    def validate_decision_no(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            s = v.strip()
+            return s if s else None
+        return None
+
+    # [SỬA] Chặn NaN/Infinity bằng math.isfinite() và đưa kiểm tra <= 0 ra ngoài try/except để không bị nuốt thông báo lỗi
+    @field_validator("discount_value", mode="before")
+    @classmethod
+    def check_discount_value_types(cls, v):
+        if isinstance(v, bool):
+            raise ValueError("Giá trị miễn giảm phải là số hợp lệ.")
+        if v is not None:
+            try:
+                val = float(v)
+            except (ValueError, TypeError):
+                raise ValueError("Giá trị miễn giảm phải là số hợp lệ.")
+            if not math.isfinite(val) or val <= 0:
+                raise ValueError("Giá trị miễn giảm phải là số hữu hạn lớn hơn 0.")
+            return val
+        return v
+
+    @model_validator(mode="after")
+    def validate_discount_and_dates(self) -> "ExemptionCreate":
+        if self.discount_type == DiscountType.PERCENT:
+            if self.discount_value > 100:
+                raise ValueError("Tỷ lệ miễn giảm theo phần trăm không được vượt quá 100%.")
+
+        if self.discount_type == DiscountType.AMOUNT:
+            if not self.discount_value.is_integer():
+                raise ValueError("Số tiền miễn giảm VNĐ phải là số nguyên, không chứa phần thập phân.")
+
+        if self.valid_to is not None and self.valid_to < self.valid_from:
+            raise ValueError("Ngày kết thúc hiệu lực (valid_to) phải lớn hơn hoặc bằng ngày bắt đầu (valid_from).")
+
+        return self
+
+
+class FeeExemption(BaseModel):
+    """Chi tiết chính sách miễn giảm phí trả về cho client (US-15, US-16)."""
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    id: int
+    household_id: int
+    fee_type_id: int
+    discount_type: DiscountType
+    discount_value: float
+    reason: str
+    decision_no: Optional[str] = None
+    approved_by: Optional[int] = None
+    valid_from: date
+    valid_to: Optional[date] = None
+    status: ExemptionStatus = ExemptionStatus.ACTIVE
+    created_at: datetime
+    updated_at: datetime
+
+    @field_validator("discount_value", mode="before")
+    @classmethod
+    def convert_discount_value(cls, v):
+        if v is not None:
+            return float(v)
+        return v
+
+
+class FeeExemptionPage(PageMeta):
+    """Phân trang danh sách chính sách miễn giảm phí."""
+    items: List[FeeExemption] = Field(default_factory=list)

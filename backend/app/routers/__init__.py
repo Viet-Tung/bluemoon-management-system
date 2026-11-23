@@ -3,6 +3,7 @@
 from app.routers.apartments import router as apartments_router
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.auth import router as auth_router
+from app.routers.fee_exemptions import router as fee_exemptions_router
 from app.routers.fee_types import router as fee_types_router
 from app.routers.households import router as households_router
 from app.routers.import_data import router as import_data_router
@@ -21,5 +22,6 @@ __all__ = [
     "import_data_router",
     "residents_router",
     "fee_types_router",
+    "fee_exemptions_router",
     "system_router",
 ]

@@ -107,3 +107,64 @@ class FeeRate(Base):
     fee_type: Mapped["FeeType"] = relationship("FeeType", back_populates="rates")
 
 
+class FeeExemption(Base, TimestampMixin):
+    """Bảng fee_exemptions (US-15, US-16): Chính sách miễn giảm theo hộ + khoản thu + thời hạn."""
+    __tablename__ = "fee_exemptions"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    household_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    fee_type_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("fee_types.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    discount_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )  # PERCENT, AMOUNT
+    discount_value: Mapped[float] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+    )  # PERCENT: 0-100 (có thể lẻ). AMOUNT: số tiền VNĐ nguyên
+    reason: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    decision_no: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )  # số quyết định
+    approved_by: Mapped[Optional[int]] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("users.id"),
+        nullable=True,
+    )  # AC-16.1
+    valid_from: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+    valid_to: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="ACTIVE",
+        nullable=False,
+        index=True,
+    )  # ACTIVE, REVOKED
+
+
+
