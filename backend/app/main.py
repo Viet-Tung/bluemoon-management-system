@@ -19,6 +19,7 @@ from app.routers import (
     roles_router,
     system_router,
     users_router,
+    vehicles_router,
 )
 from app.schemas.common import Error, ErrorDetail
 
@@ -135,6 +136,8 @@ app.include_router(fee_types_router, prefix=f"{settings.API_V1_STR}/fee-types")
 app.include_router(fee_types_router, prefix="/fee-types", include_in_schema=False)
 app.include_router(fee_exemptions_router, prefix=f"{settings.API_V1_STR}/fee-exemptions")
 app.include_router(fee_exemptions_router, prefix="/fee-exemptions", include_in_schema=False)
+app.include_router(vehicles_router, prefix=f"{settings.API_V1_STR}/vehicles")
+app.include_router(vehicles_router, prefix="/vehicles", include_in_schema=False)
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system")
 app.include_router(system_router, prefix="/system", include_in_schema=False)
 

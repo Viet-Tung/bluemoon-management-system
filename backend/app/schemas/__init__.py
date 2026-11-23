@@ -68,6 +68,15 @@ from app.schemas.user import (
     UserUpdate,
     UserWithTempPassword,
 )
+from app.schemas.vehicle import (
+    Vehicle,
+    VehicleBase,
+    VehicleCreate,
+    VehiclePage,
+    VehicleStatus,
+    VehicleUnregister,
+    VehicleUpdate,
+)
 
 __all__ = [
     "TokenPayload",
@@ -127,4 +136,11 @@ __all__ = [
     "BackupJob",
     "BackupJobPage",
     "BackupStatus",
+    "VehicleBase",
+    "VehicleCreate",
+    "VehicleUpdate",
+    "VehicleUnregister",
+    "Vehicle",
+    "VehiclePage",
+    "VehicleStatus",
 ]

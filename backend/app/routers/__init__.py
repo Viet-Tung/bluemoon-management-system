@@ -11,6 +11,7 @@ from app.routers.residents import router as residents_router
 from app.routers.roles import router as roles_router
 from app.routers.system import router as system_router
 from app.routers.users import router as users_router
+from app.routers.vehicles import router as vehicles_router
 
 __all__ = [
     "auth_router",
@@ -23,5 +24,6 @@ __all__ = [
     "residents_router",
     "fee_types_router",
     "fee_exemptions_router",
+    "vehicles_router",
     "system_router",
 ]
