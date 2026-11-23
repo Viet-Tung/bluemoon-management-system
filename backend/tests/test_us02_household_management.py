@@ -1308,7 +1308,7 @@ class TestDebtNotSettledEnforcement:
         db_session.commit()
         yield
         try:
-            db_session.execute(text("DROP TABLE IF EXISTS invoices"))
+            db_session.execute(text("DELETE FROM invoices"))
             db_session.commit()
         except Exception:
             db_session.rollback()
