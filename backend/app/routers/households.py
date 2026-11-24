@@ -3,13 +3,15 @@ import re
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.core.security import generate_secure_temporary_password, get_password_hash
 from app.models.property import Apartment, ApartmentOccupancy, Household, Resident
 from app.models.user import AuditLog, Role, User
+from app.models.vehicle import Vehicle
 from app.schemas.household import (
     Household as HouseholdSchema,
     HouseholdChangeHead,
@@ -105,7 +107,7 @@ def check_household_has_debt(db: Session, household_id: int) -> bool:
             text(
                 "SELECT 1 FROM invoices "
                 "WHERE household_id = :hid "
-                "AND (status IN ('UNPAID', 'PARTIALLY_PAID', 'OVERDUE') "
+                "AND (status IN ('UNPAID', 'PARTIAL') "
                 "     OR (total_due IS NOT NULL AND paid_amount IS NOT NULL AND total_due > paid_amount)) "
                 "LIMIT 1"
             ),
@@ -294,7 +296,7 @@ def create_household(
     # 4.4. Tự động sinh tài khoản cư dân mặc định cho hộ mới (D-12, AC-30.2)
     resident_role = db.scalar(select(Role).where(Role.code == "RESIDENT"))
     if not resident_role:
-        resident_role = Role(id=4, code="RESIDENT", name="Cư dân")
+        resident_role = Role(code="RESIDENT", name="Cư dân")
         db.add(resident_role)
         db.flush()
 
@@ -328,7 +330,28 @@ def create_household(
     db.add(resident_user)
 
     # Commit toàn bộ giao dịch
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        err_msg = str(exc).lower()
+        if "cccd" in err_msg:
+            raise AppAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="DUPLICATE_CCCD",
+                message="Số CCCD/CMND đã tồn tại trên hệ thống.",
+            ) from exc
+        if "occupancy" in err_msg or "apartments" in err_msg:
+            raise AppAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="APARTMENT_OCCUPIED",
+                message="Căn hộ đang có hộ gia đình khác cư trú.",
+            ) from exc
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_HOUSEHOLD_CODE",
+            message=f"Mã hộ gia đình '{req.household_code.strip()}' đã tồn tại trên hệ thống.",
+        ) from exc
     db.refresh(new_household)
 
     base_household = build_household_schema(db, new_household)
@@ -444,7 +467,7 @@ def deactivate_household(
         )
     )
     if active_occupancy:
-        active_occupancy.end_date = date.today()
+        active_occupancy.end_date = max(date.today(), active_occupancy.start_date)
         active_occupancy.end_reason = req.reason.strip()
 
     # 3. Vô hiệu hóa tài khoản cư dân liên kết với hộ nếu có
@@ -457,8 +480,20 @@ def deactivate_household(
     if resident_user:
         resident_user.is_active = False
 
+    # 3b. Ngừng đăng ký các phương tiện đang ACTIVE của hộ để tránh kẹt biển số
+    active_vehicles = db.scalars(
+        select(Vehicle).where(
+            Vehicle.household_id == household.id,
+            Vehicle.status == "ACTIVE",
+        )
+    ).all()
+    today = date.today()
+    for veh in active_vehicles:
+        veh.status = "INACTIVE"
+        veh.unregistered_date = max(today, veh.registered_date)
+
     # 4. Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
 
     audit = AuditLog(
@@ -614,7 +649,7 @@ def transfer_household(
     db.add(new_occupancy)
 
     # 10. Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
 
     audit = AuditLog(
@@ -744,7 +779,7 @@ def change_household_head(
             resident_user.phone = new_head.phone
 
     # Ghi nhận Audit Log CHANGE_HEAD (AC-02.1)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
 
     audit = AuditLog(

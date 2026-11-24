@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import io
 import os
+from pathlib import Path
 import openpyxl
 import pytest
 from sqlalchemy import func, select
@@ -215,8 +216,8 @@ class TestImportExcelSuccess:
 
     def test_import_official_template_file(self, client, auth_headers_admin, db_session):
         """Import trực tiếp file mẫu DOC-01_MAU_IMPORT_CU_DAN.xlsx của dự án."""
-        template_path = os.path.join("docs", "DOC-01_MAU_IMPORT_CU_DAN.xlsx")
-        assert os.path.exists(template_path), "File mẫu docs/DOC-01_MAU_IMPORT_CU_DAN.xlsx không tồn tại."
+        template_path = Path(__file__).resolve().parents[2] / "docs" / "DOC-01_MAU_IMPORT_CU_DAN.xlsx"
+        assert template_path.exists(), "File mẫu docs/DOC-01_MAU_IMPORT_CU_DAN.xlsx không tồn tại."
 
         with open(template_path, "rb") as f:
             template_bytes = f.read()

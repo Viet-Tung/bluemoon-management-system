@@ -616,6 +616,54 @@ class TestUpdateResident:
         assert patch_resp.status_code == 400
         assert patch_resp.json()["code"] == "VALIDATION_ERROR"
 
+    def test_update_aged_past_14_resident_without_cccd_allows_unrelated_fields(
+        self, client, auth_headers_admin, household_factory, db_session
+    ):
+        """Nhân khẩu đã bước qua 14 tuổi nhưng chưa cập nhật CCCD vẫn sửa được SĐT/quan hệ."""
+        h = household_factory()
+        aged_resident = Resident(
+            household_id=h["household_id"],
+            full_name="Thiếu Niên 15 Tuổi",
+            date_of_birth=date.today() - timedelta(days=365 * 15 + 10),
+            gender="NAM",
+            cccd=None,
+            phone="0901112222",
+            relationship_to_head="Con",
+            is_head=False,
+            residence_status="THUONG_TRU",
+            is_deleted=False,
+        )
+        db_session.add(aged_resident)
+        db_session.commit()
+        db_session.refresh(aged_resident)
+
+        # Cập nhật SĐT không động vào dob/cccd -> 200 OK
+        ok_resp = client.patch(
+            f"/api/v1/residents/{aged_resident.id}",
+            json={"phone": "0909888777", "relationship_to_head": "Cháu"},
+            headers=auth_headers_admin,
+        )
+        assert ok_resp.status_code == 200
+        assert ok_resp.json()["phone"] == "0909888777"
+        assert ok_resp.json()["cccd"] is None
+
+        # Nhưng nếu cố tình gửi cccd=None hoặc đổi dob -> vẫn 400 VALIDATION_ERROR
+        fail_cccd = client.patch(
+            f"/api/v1/residents/{aged_resident.id}",
+            json={"cccd": None},
+            headers=auth_headers_admin,
+        )
+        assert fail_cccd.status_code == 400
+        assert fail_cccd.json()["code"] == "VALIDATION_ERROR"
+
+        fail_dob = client.patch(
+            f"/api/v1/residents/{aged_resident.id}",
+            json={"date_of_birth": "2010-05-05"},
+            headers=auth_headers_admin,
+        )
+        assert fail_dob.status_code == 400
+        assert fail_dob.json()["code"] == "VALIDATION_ERROR"
+
     def test_update_resident_rbac_forbidden_for_accountant(self, client, auth_headers_accountant, household_factory):
         """Kế toán không có quyền sửa thông tin nhân khẩu -> 403 FORBIDDEN."""
         h = household_factory()
