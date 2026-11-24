@@ -5,7 +5,7 @@
 - **Tầng 2 — *Tại sao* (Append-only ADR):** [DECISIONS.md](./DECISIONS.md) (chỉ nối thêm quyết định mới, không sửa mục cũ).
 - **Tầng 3 — *Điều hướng*:** File này (`< 80` dòng).
 - **SSOT Read-only:** [Plan.pdf](../Plan.pdf) | [01_schema.sql](../../database/01_schema.sql) | [openapi.yaml](../openapi.yaml) | [DATABASE_DESIGN.md](../DATABASE_DESIGN.md) | [ARCHITECTURE.md](../ARCHITECTURE.md) | [PRODUCT_BACKLOG.md](../PRODUCT_BACKLOG.md).
-- **Lưu trữ đóng băng (Archive):** [sprint_1/](./sprint_1/README.md) (15 file spec chi tiết Sprint 1, giữ nguyên làm tham khảo lịch sử).
+- **Lưu trữ lịch sử:** 15 file spec chi tiết Sprint 1 trước đây (`docs/backend_spec/sprint_1/`) đã được dọn khỏi working tree (lưu trong Git history) để tránh trùng lặp với OpenAPI và code hiện hành.
 
 ## 2. Trạng thái User Stories Backend (Sprint 1 & 2)
 

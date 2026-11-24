@@ -30,3 +30,8 @@
 ## ADR-006 — Cơ chế tri thức 3 tầng (Code-first + ADR + Index ngắn)
 - **Ngữ cảnh:** Spec `.md` chi tiết cho từng US dễ bị lệch sau mỗi vòng fix bug và tốn công bảo trì.
 - **Quyết định:** Áp dụng tri thức 3 tầng: (1) *Cái gì* giữ trong FastAPI/OpenAPI + `pytest` (`test_contract_drift.py`, docstring hàm & test); (2) *Tại sao* lưu append-only tại `DECISIONS.md`; (3) Điều hướng lưu gọn tại `README.md` (`< 80` dòng). Đóng băng [sprint_1/](./sprint_1/README.md) làm tài liệu tham khảo lịch sử.
+
+## ADR-007 — Loại bỏ thư mục spec cũ `docs/backend_spec/sprint_1/` khỏi working tree
+- **Thay thế một phần:** `ADR-006` (phần giữ `sprint_1/` làm archive tại chỗ).
+- **Ngữ cảnh:** 15 file spec chi tiết Sprint 1 (~194 KB) trùng lặp với [openapi.yaml](../openapi.yaml) và gây nhiễu tìm kiếm cho cả dev lẫn AI sau các đợt sửa lỗi.
+- **Quyết định:** Xóa `docs/backend_spec/sprint_1/` khỏi working tree (lưu toàn vẹn trong Git history); thư mục `docs/backend_spec/` chỉ giữ lại [README.md](./README.md) và [DECISIONS.md](./DECISIONS.md).
