@@ -4,10 +4,11 @@ import string
 from typing import Optional
 from fastapi import APIRouter, Depends, Path, Query, Request, status
 from sqlalchemy import distinct, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.core.security import get_password_hash
 from app.models.user import AuditLog, Role, User
 from app.schemas.auth import UserResponse
@@ -160,7 +161,15 @@ def create_user(
         locked_until=None,
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_USERNAME",
+            message=f"Tên đăng nhập '{req.username.strip()}' đã tồn tại trong hệ thống.",
+        ) from exc
     db.refresh(new_user)
 
     user_response = UserResponse.model_validate(new_user)
@@ -202,6 +211,7 @@ def get_user(
     description="Cập nhật các thông tin cơ bản của người dùng (US-30). Phân quyền: ADMIN.",
 )
 def update_user(
+    request: Request,
     req: UserUpdate,
     userId: int = Path(..., ge=1, description="ID người dùng"),
     current_user: User = Depends(require_roles("ADMIN")),
@@ -216,6 +226,15 @@ def update_user(
             message=f"Không tìm thấy người dùng có ID {userId}.",
         )
 
+    if req.is_active is False and current_user.id == userId:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="CANNOT_LOCK_SELF",
+            message="Quản trị viên không được phép tự khóa tài khoản của chính mình.",
+        )
+
+    old_active = user.is_active
+
     if req.full_name is not None:
         user.full_name = req.full_name.strip()
     if req.email is not None:
@@ -224,6 +243,20 @@ def update_user(
         user.phone = req.phone.strip() if req.phone else None
     if req.is_active is not None:
         user.is_active = req.is_active
+
+    if req.is_active is not None and req.is_active != old_active:
+        audit = AuditLog(
+            user_id=current_user.id,
+            action="LOCK_USER" if not req.is_active else "UNLOCK_USER",
+            entity_type="USER",
+            entity_id=str(user.id),
+            old_value={"is_active": old_active},
+            new_value={"is_active": req.is_active},
+            reason=f"Admin '{current_user.username}' đã {'khóa' if not req.is_active else 'mở khóa'} tài khoản '{user.username}' qua cập nhật thông tin.",
+            ip_address=sanitize_ip_address(request.client.host if request.client else None),
+            user_agent=request.headers.get("user-agent"),
+        )
+        db.add(audit)
 
     db.commit()
     db.refresh(user)
@@ -296,7 +329,7 @@ def set_user_role(
     user.role_id = target_role.id
 
     # 5. Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -350,7 +383,7 @@ def lock_user(
     user.is_active = False
 
     # Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -403,7 +436,7 @@ def unlock_user(
     user.locked_until = None
 
     # Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -445,6 +478,7 @@ def reset_user_password(
             message=f"Không tìm thấy người dùng có ID {userId}.",
         )
 
+    old_must_change = user.must_change_password
     temp_password = generate_secure_temporary_password()
     user.password_hash = get_password_hash(temp_password)
     user.must_change_password = True
@@ -452,14 +486,14 @@ def reset_user_password(
     user.locked_until = None
 
     # Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
         action="RESET_PASSWORD",
         entity_type="USER",
         entity_id=str(user.id),
-        old_value={"must_change_password": user.must_change_password},
+        old_value={"must_change_password": old_must_change},
         new_value={"must_change_password": True},
         reason=f"Admin '{current_user.username}' đã cấp lại mật khẩu tạm cho tài khoản '{user.username}'.",
         ip_address=client_ip,

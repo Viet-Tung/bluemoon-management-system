@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.core.rbac_middleware import AppAPIException, get_current_user
 from app.core.security import (
     create_access_token,
     get_password_hash,
+    revoke_token,
     validate_password_strength,
     verify_password,
 )
@@ -129,9 +130,15 @@ def login(
     description="Thu hồi phiên đăng nhập hiện tại (US-28).",
 )
 def logout(
+    request: Request,
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    """Đăng xuất khỏi hệ thống."""
+    """Đăng xuất khỏi hệ thống và đưa JWT token vào danh sách thu hồi."""
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        if token:
+            revoke_token(token)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

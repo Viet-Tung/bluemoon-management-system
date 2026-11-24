@@ -1,10 +1,53 @@
 from datetime import datetime, timedelta, timezone
 import secrets
 import string
+import threading
 from typing import Any, Dict, Optional, Tuple
 import bcrypt
 import jwt
 from app.core.config import settings
+
+_REVOKED_TOKENS: Dict[str, int] = {}
+_REVOKED_LOCK = threading.Lock()
+
+
+def _prune_revoked_tokens_locked(now_ts: int) -> None:
+    expired = [key for key, exp_ts in _REVOKED_TOKENS.items() if exp_ts and exp_ts <= now_ts]
+    for key in expired:
+        _REVOKED_TOKENS.pop(key, None)
+
+
+def revoke_token(token: str, exp: Optional[int] = None) -> None:
+    """Blacklist a JWT token (by jti if present, else raw token) until expiration."""
+    key = token
+    exp_ts = exp or int((datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp())
+    try:
+        payload = decode_access_token(token)
+        if payload.get("jti"):
+            key = str(payload["jti"])
+        if payload.get("exp"):
+            exp_ts = int(payload["exp"])
+    except Exception:
+        pass
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    with _REVOKED_LOCK:
+        _prune_revoked_tokens_locked(now_ts)
+        _REVOKED_TOKENS[key] = exp_ts
+
+
+def is_token_revoked(token: str) -> bool:
+    """Return True if the JWT token has been logged out / revoked."""
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    key = token
+    try:
+        payload = decode_access_token(token)
+        if payload.get("jti"):
+            key = str(payload["jti"])
+    except Exception:
+        pass
+    with _REVOKED_LOCK:
+        _prune_revoked_tokens_locked(now_ts)
+        return key in _REVOKED_TOKENS or token in _REVOKED_TOKENS
 
 
 def get_password_hash(password: str) -> str:
@@ -47,7 +90,8 @@ def create_access_token(
     
     to_encode.update({
         "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp())
+        "exp": int(expire.timestamp()),
+        "jti": secrets.token_hex(16),
     })
     encoded_jwt = jwt.encode(
         to_encode,

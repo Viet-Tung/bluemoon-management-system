@@ -1,3 +1,4 @@
+import ipaddress
 from typing import Callable, List, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -6,12 +7,22 @@ from sqlalchemy.orm import Session
 import jwt
 
 from app.core.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, is_token_revoked
 from app.models.user import AuditLog, User
 from app.schemas.auth import TokenPayload
 
 bearer_scheme = HTTPBearer(auto_error=False)
 oauth2_scheme = bearer_scheme  # backward compatibility alias
+
+
+def sanitize_ip_address(host: Optional[str]) -> Optional[str]:
+    """Validate IP string for PostgreSQL INET column; return None if invalid (e.g. 'testclient')."""
+    if not host:
+        return None
+    try:
+        return str(ipaddress.ip_address(host.strip()))
+    except ValueError:
+        return None
 
 
 class AppAPIException(HTTPException):
@@ -67,6 +78,13 @@ def get_current_user(
             message="Token không hợp lệ hoặc đã hết hạn."
         )
 
+    if is_token_revoked(token):
+        raise AppAPIException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            code="UNAUTHENTICATED",
+            message="Phiên đăng nhập đã kết thúc (token đã bị thu hồi)."
+        )
+
     stmt = select(User).where(User.id == user_id)
     user = db.scalars(stmt).first()
 
@@ -102,7 +120,7 @@ def require_roles(*allowed_roles: str) -> Callable:
     ) -> User:
         # Kiểm tra bắt buộc đổi mật khẩu lần đầu (AC-29.1, API Contract Chapter 1.2)
         if current_user.must_change_password:
-            client_ip = request.client.host if request.client else None
+            client_ip = sanitize_ip_address(request.client.host if request.client else None)
             user_agent = request.headers.get("user-agent")
             audit = AuditLog(
                 user_id=current_user.id,
@@ -125,7 +143,7 @@ def require_roles(*allowed_roles: str) -> Callable:
         user_role_code = current_user.role.code if current_user.role else ""
         if allowed_roles and user_role_code not in allowed_roles:
             # Ghi log ACCESS_DENIED vào audit_logs
-            client_ip = request.client.host if request.client else None
+            client_ip = sanitize_ip_address(request.client.host if request.client else None)
             user_agent = request.headers.get("user-agent")
             audit = AuditLog(
                 user_id=current_user.id,
@@ -163,7 +181,7 @@ def check_household_access(
     if current_user.role and current_user.role.code == "RESIDENT":
         if current_user.household_id != household_id:
             # Ghi nhận vi phạm IDOR
-            client_ip = request.client.host if request.client else None
+            client_ip = sanitize_ip_address(request.client.host if request.client else None)
             user_agent = request.headers.get("user-agent")
             audit = AuditLog(
                 user_id=current_user.id,
