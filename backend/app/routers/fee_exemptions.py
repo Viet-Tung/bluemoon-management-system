@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, select  # [SỬA] Thêm or_ cho điều kiện
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.models.fee import FeeExemption, FeeRate, FeeType  # [SỬA] Import thêm FeeRate để kiểm tra phí gốc (AC-15.1)
 from app.models.property import Household
 from app.models.user import AuditLog, User
@@ -165,7 +165,7 @@ def create_exemption(
     db.flush()
 
     # 4. Ghi nhận Audit Log (AC-16.1, US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     new_state: Dict[str, Any] = {
         "id": exemption.id,
@@ -237,7 +237,7 @@ def revoke_exemption(
     exemption.status = "REVOKED"
 
     # Ghi nhận Audit Log (AC-16.1, US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
