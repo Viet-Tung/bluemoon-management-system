@@ -3,7 +3,7 @@ from app.models.user import Role, User, AuditLog, BackupJob
 from app.models.property import Apartment, Household, ApartmentOccupancy, Resident
 from app.models.fee import FeeExemption, FeeRate, FeeType
 from app.models.vehicle import Vehicle
-from app.models.billing import BillingPeriod, Invoice, InvoiceItem
+from app.models.billing import BillingPeriod, Invoice, InvoiceItem, UtilityReading
 
 __all__ = [
     "Base",
@@ -23,4 +23,5 @@ __all__ = [
     "BillingPeriod",
     "Invoice",
     "InvoiceItem",
+    "UtilityReading",
 ]

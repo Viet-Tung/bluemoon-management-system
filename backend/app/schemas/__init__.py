@@ -88,6 +88,10 @@ from app.schemas.billing import (
     InvoiceItem,
     InvoicePage,
     InvoiceStatus,
+    UtilityReading,
+    UtilityReadingCreate,
+    UtilityReadingPage,
+    UtilityReadingUpdate,
 )
 
 __all__ = [
@@ -165,4 +169,8 @@ __all__ = [
     "Invoice",
     "InvoiceDetail",
     "InvoicePage",
+    "UtilityReading",
+    "UtilityReadingCreate",
+    "UtilityReadingUpdate",
+    "UtilityReadingPage",
 ]
