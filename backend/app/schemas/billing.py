@@ -214,3 +214,94 @@ class InvoicePage(PageMeta):
     """Phân trang danh sách giấy báo nộp phí (GET /invoices)."""
     items: List[Invoice] = Field(default_factory=list, description="Danh sách giấy báo nộp phí")
     total_pages: Optional[int] = Field(default=None, description="Tổng số trang")
+
+
+# ==============================================================================
+# SCHEMAS CHO CHỈ SỐ ĐIỆN / NƯỚC (US-38)
+# ==============================================================================
+
+class UtilityReadingBase(BaseModel):
+    """Schema cơ sở cho chỉ số điện/nước (US-38)."""
+    household_id: int = Field(..., description="ID hộ gia đình")
+    fee_type_id: int = Field(..., description="ID loại phí (điện, nước)")
+    billing_period_id: int = Field(..., description="ID kỳ tính phí")
+    previous_index: float = Field(..., ge=0, description="Chỉ số đầu kỳ")
+    current_index: float = Field(..., ge=0, description="Chỉ số cuối kỳ")
+
+
+class UtilityReadingCreate(UtilityReadingBase):
+    """Schema tạo chỉ số điện/nước mới (POST /utility-readings)."""
+    model_config = ConfigDict(extra="ignore")
+
+    unit_price: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Tùy chọn; mặc định lấy đơn giá hiệu lực của khoản thu",
+    )
+
+    @model_validator(mode="after")
+    def validate_indexes(self) -> "UtilityReadingCreate":
+        if self.current_index < self.previous_index:
+            raise ValueError(
+                "Chỉ số cuối kỳ (current_index) phải lớn hơn hoặc bằng chỉ số đầu kỳ (previous_index)."
+            )
+        return self
+
+
+class UtilityReadingUpdate(BaseModel):
+    """Schema sửa chỉ số điện/nước (PATCH /utility-readings/{id})."""
+    model_config = ConfigDict(extra="ignore")
+
+    previous_index: Optional[float] = Field(default=None, ge=0, description="Chỉ số đầu kỳ mới")
+    current_index: Optional[float] = Field(default=None, ge=0, description="Chỉ số cuối kỳ mới")
+    unit_price: Optional[int] = Field(default=None, ge=0, description="Đơn giá mới (VNĐ)")
+
+    @model_validator(mode="after")
+    def validate_indexes(self) -> "UtilityReadingUpdate":
+        if (
+            self.current_index is not None
+            and self.previous_index is not None
+            and self.current_index < self.previous_index
+        ):
+            raise ValueError(
+                "Chỉ số cuối kỳ (current_index) phải lớn hơn hoặc bằng chỉ số đầu kỳ (previous_index)."
+            )
+        return self
+
+
+class UtilityReading(BaseModel):
+    """Schema thông tin chỉ số điện/nước trả về cho client."""
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    id: int = Field(..., description="ID bản ghi chỉ số điện/nước")
+    household_id: int = Field(..., description="ID hộ gia đình")
+    household_code: str = Field(default="", description="Mã hộ gia đình")
+    fee_type_id: int = Field(..., description="ID khoản thu")
+    fee_name: str = Field(default="", description="Tên khoản thu (VD: Tiền điện, Tiền nước)")
+    billing_period_id: int = Field(..., description="ID kỳ thu")
+    previous_index: float = Field(..., ge=0, description="Chỉ số đầu kỳ")
+    current_index: float = Field(..., ge=0, description="Chỉ số cuối kỳ")
+    consumption: float = Field(..., ge=0, description="Lượng tiêu thụ (current_index - previous_index)")
+    unit_price: int = Field(..., ge=0, description="Đơn giá áp dụng (VNĐ)")
+    amount: int = Field(..., ge=0, description="Thành tiền = consumption * unit_price (VNĐ)")
+    recorded_by: Optional[int] = Field(default=None, description="ID nhân viên ghi nhận")
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @field_validator("unit_price", "amount", mode="before")
+    @classmethod
+    def coerce_money_fields(cls, v: Any) -> Any:
+        return _round_vnd(v)
+
+    @field_validator("previous_index", "current_index", "consumption", mode="before")
+    @classmethod
+    def coerce_index_fields(cls, v: Any) -> Any:
+        if isinstance(v, Decimal):
+            return float(v)
+        return v
+
+
+class UtilityReadingPage(PageMeta):
+    """Phân trang danh sách chỉ số điện/nước (GET /utility-readings)."""
+    items: List[UtilityReading] = Field(default_factory=list, description="Danh sách chỉ số điện/nước")
+    total_pages: Optional[int] = Field(default=None, description="Tổng số trang")
