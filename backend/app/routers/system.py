@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.models.user import AuditLog, BackupJob as BackupJobModel, User
 from app.schemas.system import BackupJob, BackupJobPage, BackupStatus
 from app.services.backup_service import execute_pg_backup_job
@@ -45,7 +45,7 @@ def create_backup(
         entity_type="SYSTEM",
         entity_id=str(new_job.id),
         new_value={"job_id": new_job.id, "status": new_job.status},
-        ip_address=request.client.host if request.client else None,
+        ip_address=sanitize_ip_address(request.client.host if request.client else None),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit)

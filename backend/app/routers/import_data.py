@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.models.user import User
 from app.schemas.import_data import ImportResult
 from app.services.import_service import import_residents_excel
@@ -54,7 +54,7 @@ async def import_excel(
         )
 
     # 3. Thực thi nghiệp vụ import và giao dịch ACID trong Service
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
 
     result = import_residents_excel(

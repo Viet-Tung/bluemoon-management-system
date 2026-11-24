@@ -6,8 +6,8 @@ from sqlalchemy.exc import IntegrityError  # [SỬA] Thêm IntegrityError để 
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
-from app.models.fee import FeeRate, FeeType
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
+from app.models.fee import FeeRate, FeeType, ServiceProvider
 from app.models.user import AuditLog, User
 from app.schemas.fee import (
     FeeGroup,
@@ -125,6 +125,16 @@ def create_fee_type(
             message=f"Mã khoản thu '{clean_code}' đã tồn tại trên hệ thống."
         )
 
+    if req.provider_id is not None:
+        provider = db.get(ServiceProvider, req.provider_id)
+        if not provider:
+            raise AppAPIException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="VALIDATION_ERROR",
+                message=f"Nhà cung cấp dịch vụ ID {req.provider_id} không tồn tại.",
+                details=[{"field": "provider_id", "message": f"Không tìm thấy provider_id={req.provider_id}."}],
+            )
+
     new_fee = FeeType(
         code=clean_code,
         name=req.name.strip(),
@@ -141,10 +151,18 @@ def create_fee_type(
         created_by=current_user.id
     )
     db.add(new_fee)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_FEE_CODE",
+            message=f"Mã khoản thu '{clean_code}' đã tồn tại hoặc tham chiếu không hợp lệ."
+        )
 
     # Ghi nhận Audit Log (AC-32.1)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -237,6 +255,14 @@ def update_fee_type(
     if req.unit_label is not None:
         fee_type.unit_label = req.unit_label.strip()
     if req.provider_id is not None:
+        provider = db.get(ServiceProvider, req.provider_id)
+        if not provider:
+            raise AppAPIException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="VALIDATION_ERROR",
+                message=f"Nhà cung cấp dịch vụ ID {req.provider_id} không tồn tại.",
+                details=[{"field": "provider_id", "message": f"Không tìm thấy provider_id={req.provider_id}."}],
+            )
         fee_type.provider_id = req.provider_id
     if req.cycle is not None:
         fee_type.cycle = req.cycle.value
@@ -245,7 +271,7 @@ def update_fee_type(
     if req.description is not None:
         fee_type.description = req.description.strip() if req.description else None
 
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     new_state: Dict[str, Any] = {
         "name": fee_type.name,
@@ -300,7 +326,7 @@ def deactivate_fee_type(
     old_status = fee_type.status
     fee_type.status = "INACTIVE"
 
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -456,7 +482,7 @@ def create_fee_rate(
         db.flush()
 
         # Ghi nhận Audit Log (AC-14.1, US-32)
-        client_ip = request.client.host if request.client else None
+        client_ip = sanitize_ip_address(request.client.host if request.client else None)
         user_agent = request.headers.get("user-agent")
         new_state = {
             "rate_id": new_rate.id,

@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
@@ -60,11 +60,11 @@ def list_audit_logs(
         filters.append(AuditLog.entity_type == entity_type.strip())
 
     if from_date is not None:
-        start_dt = datetime.combine(from_date, time.min)
+        start_dt = datetime.combine(from_date, time.min, tzinfo=timezone.utc)
         filters.append(AuditLog.created_at >= start_dt)
 
     if to_date is not None:
-        end_dt = datetime.combine(to_date, time.max)
+        end_dt = datetime.combine(to_date, time.max, tzinfo=timezone.utc)
         filters.append(AuditLog.created_at <= end_dt)
 
     # Đếm tổng số bản ghi thỏa mãn điều kiện lọc

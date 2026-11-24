@@ -30,7 +30,7 @@ from app.models.user import AuditLog, User
 from app.models.vehicle import Vehicle
 
 US37_HOUSEHOLD_CODES = ("HH_US37_01", "HH_US37_02", "HH_US37_03", "HH_US37_NO_VEHICLE")
-US37_FEE_CODES = ("FEE_US37_MOTO", "FEE_US37_CAR", "FEE_US37_BIKE", "FEE_US37_MGT")
+US37_FEE_CODES = ("FEE_US37_MOTO", "FEE_US37_MOTO_EXTRA", "FEE_US37_CAR", "FEE_US37_BIKE", "FEE_US37_MGT")
 US37_APT_CODES = ("APT_US37_101", "APT_US37_102", "APT_US37_103")
 
 
@@ -127,7 +127,8 @@ def setup_parking_environment(db_session):
     # 1. Căn hộ
     apt1 = Apartment(code="APT_US37_101", floor=1, area_m2=Decimal("80.00"), status="ACTIVE")
     apt2 = Apartment(code="APT_US37_102", floor=1, area_m2=Decimal("100.00"), status="ACTIVE")
-    db_session.add_all([apt1, apt2])
+    apt3 = Apartment(code="APT_US37_103", floor=2, area_m2=Decimal("60.00"), status="ACTIVE")
+    db_session.add_all([apt1, apt2, apt3])
     db_session.flush()
 
     # 2. Hộ gia đình
@@ -140,7 +141,8 @@ def setup_parking_environment(db_session):
     # 3. Gán cư trú Căn hộ
     occ1 = ApartmentOccupancy(household_id=hh1.id, apartment_id=apt1.id, start_date=date(2026, 1, 1))
     occ2 = ApartmentOccupancy(household_id=hh2.id, apartment_id=apt2.id, start_date=date(2026, 1, 1))
-    db_session.add_all([occ1, occ2])
+    occ3 = ApartmentOccupancy(household_id=hh3.id, apartment_id=apt3.id, start_date=date(2026, 1, 1))
+    db_session.add_all([occ1, occ2, occ3])
 
     # 4. Phương tiện đăng ký (US-36)
     v1_1 = Vehicle(household_id=hh1.id, plate_number="29M1-11111", vehicle_type="MOTORBIKE", status="ACTIVE")
@@ -1038,3 +1040,57 @@ def test_rbac_invoices_endpoints_forbidden_for_resident(client, resident_headers
     res_detail = client.get("/api/v1/invoices/1", headers=resident_headers)
     assert res_detail.status_code == 403
     assert res_detail.json()["code"] == "FORBIDDEN"
+
+
+def test_multiple_active_per_vehicle_fee_types_not_overwritten(
+    client, admin_headers, db_session, setup_parking_environment
+):
+    """Hai khoản thu PER_VEHICLE cùng loại xe ACTIVE đều được tính đầy đủ, không ghi đè ngầm."""
+    hh1_id = setup_parking_environment["hh1_id"]  # Hộ 1 có 2 xe máy ACTIVE + 1 ô tô ACTIVE
+    ft_moto_id = setup_parking_environment["ft_moto_id"]
+
+    ft_moto_extra = FeeType(
+        code="FEE_US37_MOTO_EXTRA",
+        name="Phụ phí bảo vệ bãi xe máy",
+        fee_group="PARKING",
+        calc_method="PER_VEHICLE",
+        vehicle_type="MOTORBIKE",
+        unit_label="xe",
+        cycle="MONTHLY",
+        due_day=10,
+        status="ACTIVE",
+    )
+    db_session.add(ft_moto_extra)
+    db_session.flush()
+    db_session.add(
+        FeeRate(
+            fee_type_id=ft_moto_extra.id,
+            unit_price=Decimal("10000"),
+            effective_from=date(2026, 1, 1),
+        )
+    )
+    db_session.commit()
+
+    res_p = client.post(
+        "/api/v1/billing-periods",
+        json={"period_month": "2026-11-01", "name": "Kỳ 11 Nhiều Phí Xe Máy"},
+        headers=admin_headers,
+    )
+    p_id = res_p.json()["id"]
+    gen_res = client.post(f"/api/v1/billing-periods/{p_id}/generate", headers=admin_headers)
+    assert gen_res.status_code == 200
+
+    res_inv = client.get(
+        f"/api/v1/invoices?billing_period_id={p_id}&household_id={hh1_id}",
+        headers=admin_headers,
+    )
+    inv = res_inv.json()["items"][0]
+    # 2*70k + 2*10k + 1*1.200k = 1.360.000 đ
+    assert inv["fee_amount"] == 1360000
+
+    res_det = client.get(f"/api/v1/invoices/{inv['id']}", headers=admin_headers)
+    fee_ids = {it["fee_type_id"]: it for it in res_det.json()["items"]}
+    assert ft_moto_id in fee_ids
+    assert ft_moto_extra.id in fee_ids
+    assert fee_ids[ft_moto_id]["gross_amount"] == 140000
+    assert fee_ids[ft_moto_extra.id]["gross_amount"] == 20000

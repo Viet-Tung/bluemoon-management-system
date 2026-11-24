@@ -1,9 +1,10 @@
+import calendar
 import math
 from collections import Counter
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 # [SỬA] Xóa import thừa `Any`
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import delete, func, or_, select
@@ -11,10 +12,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
-from app.models.billing import BillingPeriod, Invoice, InvoiceItem, UtilityReading
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
+from app.models.billing import BillingPeriod, HouseholdCreditLedger, Invoice, InvoiceItem, UtilityReading
 from app.models.fee import FeeExemption, FeeRate, FeeType
-from app.models.property import ApartmentOccupancy, Household
+from app.models.property import ApartmentOccupancy, Household, Resident
 from app.models.user import AuditLog, User
 from app.models.vehicle import Vehicle
 # [SỬA] Xóa import thừa `Invoice as InvoiceSchema`
@@ -141,7 +142,7 @@ def create_billing_period(
         )
 
     # 3. Ghi Audit Log (US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -196,6 +197,17 @@ def get_billing_period(
 # 2. ĐỘNG CƠ TÍNH PHÍ GỬI XE & TỔNG HỢP (US-37, US-17)
 # =====================================================================
 
+def _is_fee_applicable_for_period(cycle: str, period_month: date) -> bool:
+    """Kiểm tra chu kỳ khoản thu có phát sinh trong tháng kỳ thu hay không."""
+    if cycle == "MONTHLY":
+        return True
+    if cycle == "QUARTERLY":
+        return period_month.month in (1, 4, 7, 10)
+    if cycle == "YEARLY":
+        return period_month.month == 1
+    return True
+
+
 @router.post(
     "/billing-periods/{id}/generate",
     response_model=GenerateResult,
@@ -249,6 +261,12 @@ def generate_invoices(
 
     # 4. Nếu đã có hóa đơn cũ trong kỳ (nhưng chưa có payment), xóa sạch để tái tạo lại (idempotent regeneration)
     old_inv_ids = select(Invoice.id).where(Invoice.billing_period_id == id)
+    db.execute(
+        delete(HouseholdCreditLedger).where(
+            HouseholdCreditLedger.invoice_id.in_(old_inv_ids),
+            HouseholdCreditLedger.entry_type == "APPLIED",
+        )
+    )
     db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(old_inv_ids)))
     db.execute(delete(Invoice).where(Invoice.billing_period_id == id))
     db.flush()
@@ -258,21 +276,26 @@ def generate_invoices(
         select(Household).where(Household.status == "ACTIVE").order_by(Household.id)
     ).scalars().all()
 
-    # 6. Chuẩn bị danh mục khoản thu ACTIVE
-    fee_types = db.execute(
-        select(FeeType).where(FeeType.status == "ACTIVE")
-    ).scalars().all()
+    # 6. Chuẩn bị danh mục khoản thu ACTIVE phù hợp chu kỳ của kỳ thu
+    fee_types = [
+        ft
+        for ft in db.execute(select(FeeType).where(FeeType.status == "ACTIVE")).scalars().all()
+        if _is_fee_applicable_for_period(ft.cycle, period.period_month)
+    ]
 
-    parking_fee_types: Dict[str, FeeType] = {}
+    parking_fee_types: Dict[str, List[FeeType]] = {}
     area_fee_types: List[FeeType] = []
     household_fee_types: List[FeeType] = []
+    person_fee_types: List[FeeType] = []
     for ft in fee_types:
         if ft.calc_method == "PER_VEHICLE" and ft.vehicle_type:
-            parking_fee_types[ft.vehicle_type] = ft
+            parking_fee_types.setdefault(ft.vehicle_type, []).append(ft)
         elif ft.calc_method == "PER_M2":
             area_fee_types.append(ft)
         elif ft.calc_method == "PER_HOUSEHOLD":
             household_fee_types.append(ft)
+        elif ft.calc_method == "PER_PERSON":
+            person_fee_types.append(ft)
 
     # 7. Lấy đơn giá FeeRate có hiệu lực tại ngày period_month
     effective_rates: Dict[int, FeeRate] = {}
@@ -291,13 +314,16 @@ def generate_invoices(
 
     # 8. Tối ưu hóa truy vấn: Pre-fetch dữ liệu theo batch để tránh N+1 queries (NFR-005 <= 10s cho 1.000 hộ)
     # 8.1. Thông tin cư trú / căn hộ có hiệu lực trong kỳ
+    last_day = calendar.monthrange(period.period_month.year, period.period_month.month)[1]
+    period_end_date = date(period.period_month.year, period.period_month.month, last_day)
     all_occupancies = db.execute(
         select(ApartmentOccupancy)
         .where(
+            ApartmentOccupancy.start_date <= period_end_date,
             or_(
                 ApartmentOccupancy.end_date.is_(None),
                 ApartmentOccupancy.end_date >= period.period_month,
-            )
+            ),
         )
         .order_by(ApartmentOccupancy.start_date.desc(), ApartmentOccupancy.id.desc())
         .options(joinedload(ApartmentOccupancy.apartment))
@@ -369,6 +395,32 @@ def generate_invoices(
         for row in prev_debt_rows
     }
 
+    # 8.6. Số dư có khả dụng (credit_balance) từ sổ cái household_credit_ledger (AC-17.1)
+    credit_rows = db.execute(
+        select(
+            HouseholdCreditLedger.household_id,
+            func.coalesce(func.sum(HouseholdCreditLedger.amount), 0),
+        ).group_by(HouseholdCreditLedger.household_id)
+    ).all()
+    credit_by_household: Dict[int, Decimal] = {
+        row[0]: max(
+            Decimal("0"),
+            Decimal(str(row[1])).quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        )
+        for row in credit_rows
+    }
+
+    # 8.7. Đếm số nhân khẩu đang cư trú (THUONG_TRU, TAM_VANG) cho khoản thu PER_PERSON
+    resident_rows = db.execute(
+        select(Resident.household_id, func.count(Resident.id))
+        .where(
+            Resident.is_deleted.is_(False),
+            Resident.residence_status.in_(("THUONG_TRU", "TAM_VANG")),
+        )
+        .group_by(Resident.household_id)
+    ).all()
+    residents_by_household: Dict[int, int] = {row[0]: int(row[1]) for row in resident_rows}
+
     # Hàm trợ giúp tính số tiền miễn giảm an toàn
     def _calc_item_discount(gross: Decimal, exemption: Optional[FeeExemption]) -> Decimal:
         if not exemption:
@@ -388,6 +440,7 @@ def generate_invoices(
 
     # 9. Vòng lặp tính toán chi tiết từng hộ
     created_invoices: List[Invoice] = []
+    applied_credits: List[Tuple[Invoice, Decimal]] = []
     total_fee_amount = Decimal("0")
 
     for hh in households:
@@ -400,6 +453,10 @@ def generate_invoices(
             apartment_id = occupancy.apartment_id
             apartment_area = Decimal(str(occupancy.apartment.area_m2))
             has_apartment = True
+
+        # Tuân thủ CHECK (apartment_area > 0) trong 01_schema.sql: chỉ lập giấy báo cho hộ đang gắn căn hộ hợp lệ
+        if not has_apartment or apartment_area <= Decimal("0"):
+            continue
 
         vehicle_counts = vehicles_by_household.get(hh.id, Counter())
         exemptions_map = exemptions_by_household.get(hh.id, {})
@@ -414,28 +471,28 @@ def generate_invoices(
         for v_type in ("MOTORBIKE", "CAR", "BICYCLE"):
             count = vehicle_counts.get(v_type, 0)
             if count > 0:
-                ft = parking_fee_types.get(v_type)
-                if ft and ft.id in effective_rates and ft.id not in added_fee_types:
-                    added_fee_types.add(ft.id)
-                    rate = effective_rates[ft.id]
-                    qty = Decimal(str(count))
-                    price = Decimal(str(rate.unit_price))
-                    gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-                    discount = _calc_item_discount(gross, exemptions_map.get(ft.id))
-                    net = gross - discount
-                    desc = f"{count} {ft.name} × {int(price):,} đ"
+                for ft in parking_fee_types.get(v_type, []):
+                    if ft.id in effective_rates and ft.id not in added_fee_types:
+                        added_fee_types.add(ft.id)
+                        rate = effective_rates[ft.id]
+                        qty = Decimal(str(count))
+                        price = Decimal(str(rate.unit_price))
+                        gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                        discount = _calc_item_discount(gross, exemptions_map.get(ft.id))
+                        net = gross - discount
+                        desc = f"{count} {ft.name} × {int(price):,} đ"
 
-                    item = InvoiceItem(
-                        fee_type_id=ft.id,
-                        quantity=qty,
-                        unit_price=price,
-                        gross_amount=gross,
-                        discount_amount=discount,
-                        net_amount=net,
-                        paid_amount=Decimal("0"),
-                        description=desc,
-                    )
-                    invoice_items.append(item)
+                        item = InvoiceItem(
+                            fee_type_id=ft.id,
+                            quantity=qty,
+                            unit_price=price,
+                            gross_amount=gross,
+                            discount_amount=discount,
+                            net_amount=net,
+                            paid_amount=Decimal("0"),
+                            description=desc,
+                        )
+                        invoice_items.append(item)
 
         # =============================================================
         # B. TÍNH CÁC KHOẢN PHÍ THEO DIỆN TÍCH M² (US-17)
@@ -491,6 +548,34 @@ def generate_invoices(
                 invoice_items.append(item)
 
         # =============================================================
+        # C2. TÍNH CÁC KHOẢN PHÍ THEO ĐẦU NGƯỜI (PER_PERSON)
+        # =============================================================
+        member_count = residents_by_household.get(hh.id, 0)
+        if member_count > 0:
+            for person_ft in person_fee_types:
+                if person_ft.id in effective_rates and person_ft.id not in added_fee_types:
+                    added_fee_types.add(person_ft.id)
+                    rate = effective_rates[person_ft.id]
+                    qty = Decimal(str(member_count))
+                    price = Decimal(str(rate.unit_price))
+                    gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                    discount = _calc_item_discount(gross, exemptions_map.get(person_ft.id))
+                    net = gross - discount
+                    desc = f"{member_count} {person_ft.unit_label} × {int(price):,} đ"
+
+                    item = InvoiceItem(
+                        fee_type_id=person_ft.id,
+                        quantity=qty,
+                        unit_price=price,
+                        gross_amount=gross,
+                        discount_amount=discount,
+                        net_amount=net,
+                        paid_amount=Decimal("0"),
+                        description=desc,
+                    )
+                    invoice_items.append(item)
+
+        # =============================================================
         # D. TÍNH CÁC KHOẢN PHÍ ĐIỆN / NƯỚC THEO CHỈ SỐ TIÊU THỤ (US-38)
         # =============================================================
         for reading in utility_readings:
@@ -528,11 +613,10 @@ def generate_invoices(
         hh_fee_amount = sum((it.gross_amount for it in invoice_items), Decimal("0"))
         hh_discount_amount = sum((it.discount_amount for it in invoice_items), Decimal("0"))
         previous_debt = previous_debt_by_household.get(hh.id, Decimal("0"))
-        credit_applied = Decimal("0")
-        total_due = max(
-            Decimal("0"),
-            hh_fee_amount - hh_discount_amount + previous_debt - credit_applied,
-        )
+        gross_net_due = hh_fee_amount - hh_discount_amount + previous_debt
+        available_credit = credit_by_household.get(hh.id, Decimal("0"))
+        credit_applied = min(available_credit, max(Decimal("0"), gross_net_due))
+        total_due = max(Decimal("0"), gross_net_due - credit_applied)
         status_val = "PAID" if total_due == Decimal("0") else "UNPAID"
 
         inv = Invoice(
@@ -551,7 +635,23 @@ def generate_invoices(
         )
         db.add(inv)
         created_invoices.append(inv)
+        if credit_applied > Decimal("0"):
+            applied_credits.append((inv, credit_applied))
         total_fee_amount += total_due
+
+    if applied_credits:
+        db.flush()
+        for inv, credit_used in applied_credits:
+            db.add(
+                HouseholdCreditLedger(
+                    household_id=inv.household_id,
+                    entry_type="APPLIED",
+                    amount=-credit_used,
+                    invoice_id=inv.id,
+                    note=f"Bù trừ số dư có vào kỳ thu {period.name}",
+                    created_by=current_user.id,
+                )
+            )
 
     # 9. Cập nhật trạng thái Kỳ thu -> OPEN và ghi nhận thời điểm tính phí
     now = datetime.now(timezone.utc)
@@ -560,7 +660,7 @@ def generate_invoices(
     period.updated_at = now
 
     # 10. Ghi Audit Log (US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -636,7 +736,7 @@ def close_billing_period(
     period.updated_at = now
 
     # Ghi Audit Log (US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
@@ -842,7 +942,7 @@ def create_utility_reading(
             details=[{"field": "billing_period_id", "message": f"Kỳ thu {period.name} đã ở trạng thái CLOSED."}],
         )
 
-    # 3. Kiểm tra khoản thu (fee_type) tồn tại
+    # 3. Kiểm tra khoản thu (fee_type) tồn tại và là loại tính theo chỉ số (METERED / PER_INDEX)
     fee_type = db.get(FeeType, req.fee_type_id)
     if not fee_type:
         raise AppAPIException(
@@ -850,6 +950,13 @@ def create_utility_reading(
             code="NOT_FOUND",
             message="Không tìm thấy loại phí.",
             details=[{"field": "fee_type_id", "message": f"Khoản thu với ID {req.fee_type_id} không tồn tại."}],
+        )
+    if fee_type.calc_method not in ("METERED", "PER_INDEX"):
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message=f"Khoản thu '{fee_type.name}' có phương pháp tính '{fee_type.calc_method}', không hỗ trợ nhập chỉ số công tơ.",
+            details=[{"field": "fee_type_id", "message": "Chỉ chấp nhận khoản thu có phương pháp tính theo chỉ số (METERED)."}],
         )
 
     # 4. Kiểm tra trùng lặp chỉ số (household_id, fee_type_id, billing_period_id)
@@ -944,7 +1051,7 @@ def create_utility_reading(
             "unit_price": int(reading.unit_price),
             "amount": int(reading.amount),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=sanitize_ip_address(request.client.host if request.client else None),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit)
@@ -979,7 +1086,7 @@ def update_utility_reading(
             details=[{"field": "id", "message": f"Bản ghi chỉ số với ID {id} không tồn tại."}],
         )
 
-    # 2. Kiểm tra kỳ thu đã đóng hay chưa
+    # 2. Kiểm tra kỳ thu đã đóng hay hóa đơn hộ này đã phát sinh thanh toán hay chưa
     period = db.get(BillingPeriod, reading.billing_period_id)
     if period and period.status == BillingPeriodStatus.CLOSED.value:
         raise AppAPIException(
@@ -987,6 +1094,21 @@ def update_utility_reading(
             code="PERIOD_CLOSED",
             message="Kỳ thu phí đã đóng, không thể chỉnh sửa chỉ số.",
             details=[{"field": "billing_period_id", "message": f"Kỳ thu {period.name} đã ở trạng thái CLOSED."}],
+        )
+
+    paid_invoice = db.execute(
+        select(Invoice.id).where(
+            Invoice.billing_period_id == reading.billing_period_id,
+            Invoice.household_id == reading.household_id,
+            Invoice.paid_amount > Decimal("0"),
+        )
+    ).first()
+    if paid_invoice:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="PERIOD_HAS_PAYMENTS",
+            message="Hóa đơn kỳ thu của hộ gia đình này đã phát sinh thanh toán, không thể sửa chỉ số.",
+            details=[{"field": "id", "message": "Hóa đơn liên quan đã có thanh toán."}],
         )
 
     old_value = {
@@ -1044,7 +1166,7 @@ def update_utility_reading(
         entity_id=str(reading.id),
         old_value=old_value,
         new_value=new_value,
-        ip_address=request.client.host if request.client else None,
+        ip_address=sanitize_ip_address(request.client.host if request.client else None),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit)

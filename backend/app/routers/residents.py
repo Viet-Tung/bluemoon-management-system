@@ -2,10 +2,11 @@ from datetime import date
 from typing import Any, Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.models.property import Household, Resident
 from app.models.user import AuditLog, User
 from app.schemas.resident import (
@@ -58,7 +59,7 @@ def _create_audit_log(
     new_value: Optional[dict[str, Any]],
     reason: str,
 ) -> None:
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     db.add(
         AuditLog(
@@ -189,13 +190,14 @@ def create_resident(
                 message=f"Số CCCD/CMND '{cccd_clean}' đã tồn tại trên hệ thống (thuộc nhân khẩu '{existing_cccd.full_name}').",
             )
 
-    # 3. Kiểm tra ràng buộc Chủ hộ duy nhất (AC-05.1)
+    # 3. Kiểm tra ràng buộc Chủ hộ duy nhất (AC-05.1, khớp ux_residents_one_head trong 01_schema.sql)
     if req.is_head:
         existing_head = db.scalar(
             select(Resident).where(
                 Resident.household_id == household_id,
                 Resident.is_head.is_(True),
                 Resident.is_deleted.is_(False),
+                Resident.residence_status.in_(("THUONG_TRU", "TAM_VANG")),
             )
         )
         if existing_head:
@@ -225,7 +227,22 @@ def create_resident(
         is_deleted=False,
     )
     db.add(new_resident)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        err_msg = str(exc).lower()
+        if "one_head" in err_msg or req.is_head:
+            raise AppAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                code="HEAD_ALREADY_EXISTS",
+                message="Hộ gia đình đã có chủ hộ đang hoạt động.",
+            ) from exc
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_CCCD",
+            message=f"Số CCCD/CMND '{cccd_clean}' đã tồn tại trên hệ thống.",
+        ) from exc
 
     # 5. Ghi Audit Log (US-32)
     _create_audit_log(
@@ -325,15 +342,16 @@ def update_resident(
 
     target_cccd_clean = req.cccd if "cccd" in fields_set else resident.cccd
 
-    # Kiểm tra tuổi & CCCD bắt buộc
-    age = calculate_age(target_dob)
-    if age >= 14 and not target_cccd_clean:
-        raise AppAPIException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            code="VALIDATION_ERROR",
-            message="Nhân khẩu từ 14 tuổi trở lên bắt buộc phải có số CCCD/CMND.",
-            details=[{"field": "cccd", "message": "Bắt buộc đối với nhân khẩu từ 14 tuổi trở lên."}],
-        )
+    # Kiểm tra tuổi & CCCD bắt buộc (chỉ ép khi cập nhật ngày sinh hoặc CCCD để không khóa sửa SĐT/quan hệ của cư dân vừa bước qua tuổi 14)
+    if "date_of_birth" in fields_set or "cccd" in fields_set:
+        age = calculate_age(target_dob)
+        if age >= 14 and not target_cccd_clean:
+            raise AppAPIException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="VALIDATION_ERROR",
+                message="Nhân khẩu từ 14 tuổi trở lên bắt buộc phải có số CCCD/CMND.",
+                details=[{"field": "cccd", "message": "Bắt buộc đối với nhân khẩu từ 14 tuổi trở lên."}],
+            )
 
     # Kiểm tra trùng CCCD nếu có thay đổi CCCD
     if target_cccd_clean and target_cccd_clean != resident.cccd:
@@ -380,6 +398,16 @@ def update_resident(
             else None
         )
 
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_CCCD",
+            message=f"Số CCCD/CMND '{target_cccd_clean}' đã tồn tại trên hệ thống.",
+        ) from exc
+
     # Ghi Audit Log (US-32)
     _create_audit_log(
         db=db,
@@ -417,9 +445,18 @@ def update_resident(
 def delete_resident(
     resident_id: int,
     request: Request,
+    reason: Optional[str] = Query(default=None, description="Lý do xóa (lưu vào delete_reason)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("ADMIN")),
 ):
+    if reason is not None and not reason.strip():
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Lý do xóa không được chỉ chứa khoảng trắng.",
+            details=[{"field": "reason", "message": "Lý do xóa không hợp lệ."}],
+        )
+
     resident = db.scalar(
         select(Resident).where(
             Resident.id == resident_id,
@@ -443,11 +480,13 @@ def delete_resident(
                 message=f"Không thể xóa nhân khẩu '{resident.full_name}' vì đang là Chủ hộ của một hộ gia đình đang hoạt động. Vui lòng chỉ định Chủ hộ mới trước khi xóa.",
             )
 
+    clean_reason = reason.strip() if reason is not None else "Xóa logic bởi quản trị viên"
+
     # Xóa logic (Soft delete)
     resident.is_deleted = True
     resident.deleted_at = func.now()
     resident.deleted_by = current_user.id
-    resident.delete_reason = "Xóa logic bởi quản trị viên"
+    resident.delete_reason = clean_reason
 
     # Ghi Audit Log (US-32)
     _create_audit_log(
@@ -464,7 +503,7 @@ def delete_resident(
             "cccd": resident.cccd,
         },
         new_value={"is_deleted": True},
-        reason=f"Xóa logic nhân khẩu '{resident.full_name}' khỏi hộ ID {resident.household_id}.",
+        reason=clean_reason if reason is not None else f"Xóa logic nhân khẩu '{resident.full_name}' khỏi hộ ID {resident.household_id}.",
     )
     db.commit()
 

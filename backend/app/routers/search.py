@@ -1,7 +1,7 @@
 # [SỬA] Thêm Tuple để khai báo kiểu cho danh sách kết quả kèm điểm xếp hạng
 from typing import List, Optional, Tuple
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
@@ -218,12 +218,28 @@ def global_search(
             )
         )
 
-    # 4. Tìm kiếm Phương tiện (Vehicle): plate_number
+    # 4. Tìm kiếm Phương tiện (Vehicle): plate_number (chuẩn hóa khoảng trắng, '-', '.')
+    q_canon = "".join(q_clean.split()).replace("-", "").replace(".", "")
+    escaped_canon = (
+        q_canon.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    canon_pattern = f"%{escaped_canon}%"
+    canon_plate_col = func.replace(
+        func.replace(func.replace(Vehicle.plate_number, " ", ""), "-", ""),
+        ".",
+        "",
+    )
     vehicle_stmt = (
         select(Vehicle)
         .options(joinedload(Vehicle.household))
-        # [SỬA] Thêm escape="\\"
-        .where(Vehicle.plate_number.ilike(search_pattern, escape="\\"))
+        .where(
+            or_(
+                Vehicle.plate_number.ilike(search_pattern, escape="\\"),
+                canon_plate_col.ilike(canon_pattern, escape="\\"),
+            )
+        )
         .order_by(Vehicle.id.asc())
         .limit(limit)
     )

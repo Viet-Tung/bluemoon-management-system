@@ -18,6 +18,21 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
 
+class ServiceProvider(Base):
+    """Bảng service_providers (US-39): Nhà cung cấp dịch vụ thu hộ (điện, nước, internet...)."""
+    __tablename__ = "service_providers"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    service_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    contact: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
 class FeeType(Base, TimestampMixin):
     """Bảng fee_types (US-12, US-13): Khoản thu bắt buộc trong danh mục phí."""
     __tablename__ = "fee_types"
@@ -36,6 +51,7 @@ class FeeType(Base, TimestampMixin):
     is_pass_through: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     provider_id: Mapped[Optional[int]] = mapped_column(
         BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("service_providers.id"),
         nullable=True
     )
     cycle: Mapped[str] = mapped_column(String(50), default="MONTHLY", nullable=False)  # MONTHLY, QUARTERLY, YEARLY

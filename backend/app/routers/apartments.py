@@ -1,6 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -95,7 +96,15 @@ def create_apartment(
         note=req.note.strip() if req.note else None
     )
     db.add(new_apartment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_APARTMENT_CODE",
+            message=f"Mã căn hộ '{req.code.strip()}' đã tồn tại trên hệ thống."
+        ) from exc
     db.refresh(new_apartment)
 
     return ApartmentSchema.model_validate(new_apartment)

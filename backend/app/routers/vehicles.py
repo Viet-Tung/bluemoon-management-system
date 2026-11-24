@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.rbac_middleware import AppAPIException, require_roles
+from app.core.rbac_middleware import AppAPIException, require_roles, sanitize_ip_address
 from app.models.property import Household
 from app.models.user import AuditLog, User
 from app.models.vehicle import Vehicle
@@ -23,6 +23,20 @@ from app.schemas.vehicle import (
 )
 
 router = APIRouter(tags=["Vehicles"])
+
+
+def _canonical_plate(plate: str) -> str:
+    """Chuẩn hóa biển số để chống trùng/tìm kiếm: bỏ khoảng trắng, '-', '.' và viết hoa."""
+    return "".join(plate.split()).replace("-", "").replace(".", "").upper()
+
+
+def _sql_canonical_plate(col):
+    """Biểu thức SQL chuẩn hóa biển số tương ứng với _canonical_plate."""
+    return func.replace(
+        func.replace(func.replace(func.upper(col), " ", ""), "-", ""),
+        ".",
+        "",
+    )
 
 
 @router.get(
@@ -56,10 +70,9 @@ def list_vehicles(
         stmt = stmt.where(Vehicle.vehicle_type == vehicle_type.value)
 
     if plate_number and plate_number.strip():
-        clean_plate = "".join(plate_number.split()).upper()
-        # [SỬA] Dùng .contains(..., autoescape=True) để tránh ký tự '%' hoặc '_' bị hiểu thành wildcard SQL
+        clean_plate = _canonical_plate(plate_number)
         stmt = stmt.where(
-            func.upper(func.replace(Vehicle.plate_number, " ", "")).contains(clean_plate, autoescape=True)
+            _sql_canonical_plate(Vehicle.plate_number).contains(clean_plate, autoescape=True)
         )
 
     # Đếm tổng số bản ghi
@@ -112,12 +125,13 @@ def create_vehicle(
             details=[{"field": "household_id", "message": "Hộ gia đình đang ở trạng thái INACTIVE."}],
         )
 
-    # 2. Kiểm tra trùng biển số xe đang ACTIVE
+    # 2. Kiểm tra trùng biển số xe đang ACTIVE (chuẩn hóa cả khoảng trắng, '-', '.')
     norm_plate = "".join(req.plate_number.split()).upper()
+    canon_plate = _canonical_plate(req.plate_number)
     existing_vehicle = db.scalar(
         select(Vehicle).where(
             Vehicle.status == "ACTIVE",
-            func.upper(func.replace(Vehicle.plate_number, " ", "")) == norm_plate,
+            _sql_canonical_plate(Vehicle.plate_number) == canon_plate,
         )
     )
     if existing_vehicle:
@@ -156,7 +170,7 @@ def create_vehicle(
         )
 
     # 4. Ghi nhận Audit Log (US-32, US-44)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     new_state: Dict[str, Any] = {
         "id": vehicle.id,
@@ -225,13 +239,14 @@ def update_vehicle(
     if "plate_number" in update_data and update_data["plate_number"] is not None:
         new_plate = update_data["plate_number"]
         norm_new_plate = "".join(new_plate.split()).upper()
-        norm_curr_plate = "".join(vehicle.plate_number.split()).upper()
-        if norm_new_plate != norm_curr_plate:
+        canon_new_plate = _canonical_plate(new_plate)
+        canon_curr_plate = _canonical_plate(vehicle.plate_number)
+        if canon_new_plate != canon_curr_plate:
             dup_vehicle = db.scalar(
                 select(Vehicle).where(
                     Vehicle.id != vehicle.id,
                     Vehicle.status == "ACTIVE",
-                    func.upper(func.replace(Vehicle.plate_number, " ", "")) == norm_new_plate,
+                    _sql_canonical_plate(Vehicle.plate_number) == canon_new_plate,
                 )
             )
             if dup_vehicle:
@@ -244,7 +259,7 @@ def update_vehicle(
                         "message": f"Biển số '{norm_new_plate}' đã thuộc về xe ID {dup_vehicle.id}."
                     }],
                 )
-            vehicle.plate_number = norm_new_plate
+        vehicle.plate_number = norm_new_plate
 
     # 2. Cập nhật các trường khác nếu có
     if "vehicle_type" in update_data and update_data["vehicle_type"] is not None:
@@ -270,7 +285,7 @@ def update_vehicle(
         )
 
     # 3. Ghi nhận Audit Log
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     new_state: Dict[str, Any] = {
         "plate_number": vehicle.plate_number,
@@ -350,7 +365,7 @@ def unregister_vehicle(
     vehicle.unregistered_date = unreg_date
 
     # Ghi nhận Audit Log (AC-36.1, US-32)
-    client_ip = request.client.host if request.client else None
+    client_ip = sanitize_ip_address(request.client.host if request.client else None)
     user_agent = request.headers.get("user-agent")
     audit = AuditLog(
         user_id=current_user.id,
