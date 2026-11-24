@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, require_roles
-from app.models.billing import BillingPeriod, Invoice, InvoiceItem
+from app.models.billing import BillingPeriod, Invoice, InvoiceItem, UtilityReading
 from app.models.fee import FeeExemption, FeeRate, FeeType
 from app.models.property import ApartmentOccupancy, Household
 from app.models.user import AuditLog, User
@@ -27,6 +27,10 @@ from app.schemas.billing import (
     InvoiceDetail,
     InvoicePage,
     InvoiceStatus,
+    UtilityReading as UtilityReadingSchema,
+    UtilityReadingCreate,
+    UtilityReadingPage,
+    UtilityReadingUpdate,
 )
 
 router = APIRouter(tags=["Billing"])
@@ -658,3 +662,306 @@ def get_invoice(
         )
 
     return invoice
+
+
+# =====================================================================
+# 4. CHỈ SỐ TIÊU THỤ ĐIỆN / NƯỚC (UTILITY READINGS - US-38)
+# =====================================================================
+
+@router.get(
+    "/utility-readings",
+    response_model=UtilityReadingPage,
+    status_code=status.HTTP_200_OK,
+    summary="Danh sách chỉ số điện/nước",
+    description="Tra cứu danh sách chỉ số điện/nước có phân trang và bộ lọc (US-38). Quyền: ADMIN, ACCOUNTANT.",
+    operation_id="listUtilityReadings",
+)
+def list_utility_readings(
+    page: int = Query(default=1, ge=1, description="Số trang (bắt đầu từ 1)"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Kích thước trang (1-100)"),
+    billing_period_id: Optional[int] = Query(default=None, description="Lọc theo ID kỳ thu"),
+    fee_type_id: Optional[int] = Query(default=None, description="Lọc theo ID khoản thu"),
+    household_id: Optional[int] = Query(default=None, description="Lọc theo ID hộ gia đình"),
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+) -> UtilityReadingPage:
+    """Tra cứu danh sách chỉ số điện/nước có phân trang (US-38)."""
+    stmt = select(UtilityReading)
+    if billing_period_id is not None:
+        stmt = stmt.where(UtilityReading.billing_period_id == billing_period_id)
+    if fee_type_id is not None:
+        stmt = stmt.where(UtilityReading.fee_type_id == fee_type_id)
+    if household_id is not None:
+        stmt = stmt.where(UtilityReading.household_id == household_id)
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    offset = (page - 1) * page_size
+    items = db.execute(
+        stmt.order_by(UtilityReading.id.desc())
+        .offset(offset)
+        .limit(page_size)
+    ).scalars().all()
+
+    return UtilityReadingPage(
+        items=list(items),
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.post(
+    "/utility-readings",
+    response_model=UtilityReadingSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Nhập chỉ số điện/nước",
+    description="Nhập chỉ số điện/nước mới cho hộ gia đình trong kỳ thu (US-38). Quyền: ADMIN, ACCOUNTANT.",
+    operation_id="createUtilityReading",
+)
+def create_utility_reading(
+    req: UtilityReadingCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+) -> UtilityReadingSchema:
+    """Nhập chỉ số điện/nước (US-38)."""
+    # 1. Kiểm tra hộ gia đình tồn tại
+    household = db.get(Household, req.household_id)
+    if not household:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message="Không tìm thấy hộ gia đình.",
+            details=[{"field": "household_id", "message": f"Hộ gia đình với ID {req.household_id} không tồn tại."}],
+        )
+
+    # 2. Kiểm tra kỳ thu tồn tại và chưa đóng
+    period = db.get(BillingPeriod, req.billing_period_id)
+    if not period:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message="Không tìm thấy kỳ thu phí.",
+            details=[{"field": "billing_period_id", "message": f"Kỳ thu với ID {req.billing_period_id} không tồn tại."}],
+        )
+    if period.status == BillingPeriodStatus.CLOSED.value:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="PERIOD_CLOSED",
+            message="Kỳ thu phí đã đóng, không thể nhập chỉ số mới.",
+            details=[{"field": "billing_period_id", "message": f"Kỳ thu {period.name} đã ở trạng thái CLOSED."}],
+        )
+
+    # 3. Kiểm tra khoản thu (fee_type) tồn tại
+    fee_type = db.get(FeeType, req.fee_type_id)
+    if not fee_type:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message="Không tìm thấy loại phí.",
+            details=[{"field": "fee_type_id", "message": f"Khoản thu với ID {req.fee_type_id} không tồn tại."}],
+        )
+
+    # 4. Kiểm tra trùng lặp chỉ số (household_id, fee_type_id, billing_period_id)
+    existing = db.execute(
+        select(UtilityReading).where(
+            UtilityReading.household_id == req.household_id,
+            UtilityReading.fee_type_id == req.fee_type_id,
+            UtilityReading.billing_period_id == req.billing_period_id,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_READING",
+            message="Chỉ số cho dịch vụ này của hộ trong kỳ đã tồn tại.",
+            details=[
+                {
+                    "field": "fee_type_id",
+                    "message": f"Hộ {household.household_code} đã có chỉ số {fee_type.name} trong kỳ {period.name}.",
+                }
+            ],
+        )
+
+    # 5. Xác định đơn giá (unit_price)
+    if req.unit_price is not None:
+        unit_price = Decimal(str(req.unit_price))
+    else:
+        # Lấy đơn giá hiệu lực tại ngày bắt đầu kỳ thu (period_month)
+        fee_rate = db.execute(
+            select(FeeRate)
+            .where(
+                FeeRate.fee_type_id == req.fee_type_id,
+                FeeRate.effective_from <= period.period_month,
+                or_(FeeRate.effective_to.is_(None), FeeRate.effective_to >= period.period_month),
+            )
+            .order_by(FeeRate.effective_from.desc(), FeeRate.id.desc())
+        ).scalars().first()
+
+        if not fee_rate:
+            raise AppAPIException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="VALIDATION_ERROR",
+                message=f"Không tìm thấy biểu giá hiệu lực cho khoản thu '{fee_type.name}' tại kỳ {period.name}.",
+                details=[{"field": "unit_price", "message": "Vui lòng nhập đơn giá hoặc cấu hình biểu giá cho khoản thu."}],
+            )
+        unit_price = Decimal(str(fee_rate.unit_price))
+
+    # 6. Tính toán amount
+    prev_idx = Decimal(str(req.previous_index))
+    curr_idx = Decimal(str(req.current_index))
+    consumption = curr_idx - prev_idx
+    amount = (consumption * unit_price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+    # 7. Tạo bản ghi UtilityReading
+    # Lưu ý: Cột `consumption` là Computed trong model, DB tự tính nên KHÔNG truyền `consumption` vào constructor!
+    reading = UtilityReading(
+        household_id=req.household_id,
+        fee_type_id=req.fee_type_id,
+        billing_period_id=req.billing_period_id,
+        previous_index=prev_idx,
+        current_index=curr_idx,
+        unit_price=unit_price,
+        amount=amount,
+        recorded_by=current_user.id,
+    )
+    db.add(reading)
+    try:
+        db.commit()
+        db.refresh(reading)
+    except IntegrityError as exc:
+        db.rollback()
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="DUPLICATE_READING",
+            message="Chỉ số cho dịch vụ này của hộ trong kỳ đã tồn tại.",
+        ) from exc
+
+    # 8. Ghi nhận AuditLog
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="CREATE_UTILITY_READING",
+        entity_type="UTILITY_READING",
+        entity_id=str(reading.id),
+        old_value=None,
+        new_value={
+            "household_id": reading.household_id,
+            "fee_type_id": reading.fee_type_id,
+            "billing_period_id": reading.billing_period_id,
+            "previous_index": float(reading.previous_index),
+            "current_index": float(reading.current_index),
+            "consumption": float(reading.consumption),
+            "unit_price": int(reading.unit_price),
+            "amount": int(reading.amount),
+        },
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    db.add(audit)
+    db.commit()
+
+    return reading
+
+
+@router.patch(
+    "/utility-readings/{id}",
+    response_model=UtilityReadingSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Sửa chỉ số điện/nước",
+    description="Cập nhật chỉ số điện/nước và tính lại thành tiền (US-38). Quyền: ADMIN, ACCOUNTANT.",
+    operation_id="updateUtilityReading",
+)
+def update_utility_reading(
+    id: int,
+    req: UtilityReadingUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
+) -> UtilityReadingSchema:
+    """Cập nhật chỉ số điện/nước (US-38)."""
+    # 1. Tìm bản ghi chỉ số
+    reading = db.get(UtilityReading, id)
+    if not reading:
+        raise AppAPIException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="NOT_FOUND",
+            message="Không tìm thấy bản ghi chỉ số điện/nước.",
+            details=[{"field": "id", "message": f"Bản ghi chỉ số với ID {id} không tồn tại."}],
+        )
+
+    # 2. Kiểm tra kỳ thu đã đóng hay chưa
+    period = db.get(BillingPeriod, reading.billing_period_id)
+    if period and period.status == BillingPeriodStatus.CLOSED.value:
+        raise AppAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            code="PERIOD_CLOSED",
+            message="Kỳ thu phí đã đóng, không thể chỉnh sửa chỉ số.",
+            details=[{"field": "billing_period_id", "message": f"Kỳ thu {period.name} đã ở trạng thái CLOSED."}],
+        )
+
+    old_value = {
+        "previous_index": float(reading.previous_index),
+        "current_index": float(reading.current_index),
+        "consumption": float(reading.consumption),
+        "unit_price": int(reading.unit_price),
+        "amount": int(reading.amount),
+    }
+
+    # 3. Tính toán các giá trị mới
+    new_prev = Decimal(str(req.previous_index)) if req.previous_index is not None else reading.previous_index
+    new_curr = Decimal(str(req.current_index)) if req.current_index is not None else reading.current_index
+    new_unit_price = Decimal(str(req.unit_price)) if req.unit_price is not None else reading.unit_price
+
+    # 4. Kiểm tra hợp lệ: current_index >= previous_index
+    if new_curr < new_prev:
+        raise AppAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code="VALIDATION_ERROR",
+            message="Chỉ số cuối kỳ (current_index) phải lớn hơn hoặc bằng chỉ số đầu kỳ (previous_index).",
+            details=[
+                {"field": "current_index", "message": f"Chỉ số cuối ({new_curr}) nhỏ hơn chỉ số đầu ({new_prev})."}
+            ],
+        )
+
+    new_consumption = new_curr - new_prev
+    new_amount = (new_consumption * new_unit_price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+    # 5. Cập nhật các trường
+    # Lưu ý: Cột `consumption` là Computed trong model, DB tự cập nhật nên KHÔNG gán `reading.consumption = ...`!
+    if req.previous_index is not None:
+        reading.previous_index = new_prev
+    if req.current_index is not None:
+        reading.current_index = new_curr
+    if req.unit_price is not None:
+        reading.unit_price = new_unit_price
+    reading.amount = new_amount
+
+    db.commit()
+    db.refresh(reading)
+
+    # 6. Ghi nhận AuditLog
+    new_value = {
+        "previous_index": float(reading.previous_index),
+        "current_index": float(reading.current_index),
+        "consumption": float(reading.consumption),
+        "unit_price": int(reading.unit_price),
+        "amount": int(reading.amount),
+    }
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="UPDATE_UTILITY_READING",
+        entity_type="UTILITY_READING",
+        entity_id=str(reading.id),
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    db.add(audit)
+    db.commit()
+
+    return reading
