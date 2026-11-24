@@ -151,7 +151,10 @@ def setup_us17_environment(db_session):
     apt2 = Apartment(code="APT_US17_102", floor=1, area_m2=Decimal("100.00"), status="ACTIVE")
     apt3 = Apartment(code="APT_US17_103", floor=2, area_m2=Decimal("65.50"), status="ACTIVE")
     apt4 = Apartment(code="APT_US17_104", floor=2, area_m2=Decimal("120.00"), status="ACTIVE")
-    db_session.add_all([apt1, apt2, apt3, apt4])
+    apt5 = Apartment(code="APT_US17_201", floor=3, area_m2=Decimal("50.00"), status="ACTIVE")
+    apt6 = Apartment(code="APT_US17_202", floor=3, area_m2=Decimal("50.00"), status="ACTIVE")
+    apt7 = Apartment(code="APT_US17_203", floor=3, area_m2=Decimal("50.00"), status="ACTIVE")
+    db_session.add_all([apt1, apt2, apt3, apt4, apt5, apt6, apt7])
     db_session.flush()
 
     # 2. Hộ gia đình
@@ -162,12 +165,15 @@ def setup_us17_environment(db_session):
     db_session.add_all(households.values())
     db_session.flush()
 
-    # 3. Gán căn hộ cho các hộ
+    # 3. Gán căn hộ cho các hộ (riêng HH_US17_EMPTY cố tình không gắn căn hộ để kiểm chứng bỏ qua an toàn theo CHECK > 0)
     occ1 = ApartmentOccupancy(apartment_id=apt1.id, household_id=households["HH_US17_FULL"].id, start_date=date(2025, 1, 1))
     occ2 = ApartmentOccupancy(apartment_id=apt2.id, household_id=households["HH_US17_AREA_ONLY"].id, start_date=date(2025, 1, 1))
     occ3 = ApartmentOccupancy(apartment_id=apt3.id, household_id=households["HH_US17_EXEMPTION_PCT"].id, start_date=date(2025, 1, 1))
     occ4 = ApartmentOccupancy(apartment_id=apt4.id, household_id=households["HH_US17_DEBT"].id, start_date=date(2025, 1, 1))
-    db_session.add_all([occ1, occ2, occ3, occ4])
+    occ5 = ApartmentOccupancy(apartment_id=apt5.id, household_id=households["HH_US17_VEHICLE_ONLY"].id, start_date=date(2025, 1, 1))
+    occ6 = ApartmentOccupancy(apartment_id=apt6.id, household_id=households["HH_US17_UTILITY_ONLY"].id, start_date=date(2025, 1, 1))
+    occ7 = ApartmentOccupancy(apartment_id=apt7.id, household_id=households["HH_US17_EXEMPTION_AMT"].id, start_date=date(2025, 1, 1))
+    db_session.add_all([occ1, occ2, occ3, occ4, occ5, occ6, occ7])
     db_session.flush()
 
     # 4. Khoản thu
@@ -530,7 +536,7 @@ def test_ac17_1_calculate_standard_formula_full_household(client, accountant_hea
     assert res_gen.status_code == 200
     gen_data = res_gen.json()
     assert gen_data["households_processed"] >= 8
-    assert gen_data["invoices_created"] >= 8
+    assert gen_data["invoices_created"] >= 7
 
     # 3. Kiểm tra giấy báo của hộ HH_US17_FULL
     hh_full = setup_us17_environment["households"]["HH_US17_FULL"]
@@ -611,10 +617,10 @@ def test_generate_invoices_vehicle_only_household(client, accountant_headers, se
     )
     inv = res_inv.json()["items"][0]
 
-    # Xe máy: 70.000 + 2 xe đạp: 60.000 + Cố định an ninh: 50.000 = 180.000 đ
-    assert inv["apartment_area"] == 0.0
-    assert inv["fee_amount"] == 180000
-    assert inv["total_due"] == 180000
+    # Quản lý (50m2 * 10.000 = 500.000) + Xe máy: 70.000 + 2 xe đạp: 60.000 + Cố định an ninh: 50.000 = 680.000 đ
+    assert inv["apartment_area"] == 50.0
+    assert inv["fee_amount"] == 680000
+    assert inv["total_due"] == 680000
 
 
 def test_generate_invoices_integrated_with_utility_readings(client, accountant_headers, db_session, setup_us17_environment):
@@ -664,9 +670,9 @@ def test_generate_invoices_integrated_with_utility_readings(client, accountant_h
         headers=accountant_headers,
     )
     inv = res_inv.json()["items"][0]
-    # Điện 375k + Nước 300k + An ninh cố định 50k = 725.000 đ
-    assert inv["fee_amount"] == 725000
-    assert inv["total_due"] == 725000
+    # Quản lý (50m2 * 10.000 = 500.000) + Điện 375k + Nước 300k + An ninh cố định 50k = 1.225.000 đ
+    assert inv["fee_amount"] == 1225000
+    assert inv["total_due"] == 1225000
 
     # Kiểm tra dòng chi tiết
     res_detail = client.get(f"/api/v1/invoices/{inv['id']}", headers=accountant_headers)
@@ -726,14 +732,15 @@ def test_generate_invoices_with_amount_exemption(client, accountant_headers, set
     )
     inv = res_inv.json()["items"][0]
 
+    # Quản lý (50m2 * 10.000 = 500.000)
     # Ô tô: 1.200.000 đ, giảm 200.000 đ -> còn 1.000.000 đ
     # An ninh: 50.000 đ
-    # Tổng gốc: 1.250.000 đ
+    # Tổng gốc: 1.750.000 đ
     # Miễn giảm: 200.000 đ
-    # Tổng nộp: 1.050.000 đ
-    assert inv["fee_amount"] == 1250000
+    # Tổng nộp: 1.550.000 đ
+    assert inv["fee_amount"] == 1750000
     assert inv["discount_amount"] == 200000
-    assert inv["total_due"] == 1050000
+    assert inv["total_due"] == 1550000
 
 
 def test_generate_invoices_accumulates_previous_debt(client, accountant_headers, db_session, setup_us17_environment):
@@ -787,7 +794,7 @@ def test_generate_invoices_accumulates_previous_debt(client, accountant_headers,
 
 
 def test_generate_invoices_empty_household_has_zero_due_and_paid_status(client, accountant_headers, setup_us17_environment):
-    """Hộ không có xe, không có căn hộ, chỉ có phí cố định nếu có; nếu không có gì thì hóa đơn 0đ và trạng thái PAID (US-17)."""
+    """Hộ không gắn căn hộ (apartment_area = 0) được bỏ qua an toàn để tuân thủ CHECK (apartment_area > 0) trong 01_schema.sql (US-17)."""
     res_period = client.post(
         "/api/v1/billing-periods",
         json={"period_month": "2026-10-01", "name": "Kỳ thu tháng 10/2026"},
@@ -795,18 +802,16 @@ def test_generate_invoices_empty_household_has_zero_due_and_paid_status(client, 
     )
     period_id = res_period.json()["id"]
 
-    client.post(f"/api/v1/billing-periods/{period_id}/generate", headers=accountant_headers)
+    res_gen = client.post(f"/api/v1/billing-periods/{period_id}/generate", headers=accountant_headers)
+    assert res_gen.status_code == 200
 
     hh_empty = setup_us17_environment["households"]["HH_US17_EMPTY"]
     res_inv = client.get(
         f"/api/v1/invoices?billing_period_id={period_id}&household_id={hh_empty.id}",
         headers=accountant_headers,
     )
-    inv = res_inv.json()["items"][0]
-    # Chỉ có phí cố định an ninh 50k
-    assert inv["apartment_area"] == 0.0
-    assert inv["fee_amount"] == 50000
-    assert inv["total_due"] == 50000
+    assert res_inv.status_code == 200
+    assert res_inv.json()["items"] == []
 
 
 def test_generate_invoices_idempotent_regeneration(client, accountant_headers, setup_us17_environment):

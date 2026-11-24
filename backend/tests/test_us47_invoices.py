@@ -144,7 +144,11 @@ def setup_us47_environment(client, accountant_headers, db_session):
     apt1 = Apartment(code="APT_US47_101", floor=1, area_m2=Decimal("85.50"), status="ACTIVE")
     apt2 = Apartment(code="APT_US47_102", floor=1, area_m2=Decimal("110.00"), status="ACTIVE")
     apt3 = Apartment(code="APT_US47_103", floor=2, area_m2=Decimal("70.00"), status="ACTIVE")
-    db_session.add_all([apt1, apt2, apt3])
+    apt4 = Apartment(code="APT_US47_104", floor=2, area_m2=Decimal("60.00"), status="ACTIVE")
+    apt5 = Apartment(code="APT_US47_105", floor=3, area_m2=Decimal("60.00"), status="ACTIVE")
+    apt6 = Apartment(code="APT_US47_106", floor=3, area_m2=Decimal("60.00"), status="ACTIVE")
+    apt7 = Apartment(code="APT_US47_107", floor=3, area_m2=Decimal("60.00"), status="ACTIVE")
+    db_session.add_all([apt1, apt2, apt3, apt4, apt5, apt6, apt7])
     db_session.flush()
 
     # 2. Hộ gia đình
@@ -159,7 +163,11 @@ def setup_us47_environment(client, accountant_headers, db_session):
     occ1 = ApartmentOccupancy(apartment_id=apt1.id, household_id=households["HH_US47_FULL"].id, start_date=date(2025, 1, 1))
     occ2 = ApartmentOccupancy(apartment_id=apt2.id, household_id=households["HH_US47_AREA_ONLY"].id, start_date=date(2025, 1, 1))
     occ3 = ApartmentOccupancy(apartment_id=apt3.id, household_id=households["HH_US47_EXEMPTION"].id, start_date=date(2025, 1, 1))
-    db_session.add_all([occ1, occ2, occ3])
+    occ4 = ApartmentOccupancy(apartment_id=apt4.id, household_id=households["HH_US47_PARKING_ONLY"].id, start_date=date(2025, 1, 1))
+    occ5 = ApartmentOccupancy(apartment_id=apt5.id, household_id=households["HH_US47_UTILITY_ONLY"].id, start_date=date(2025, 1, 1))
+    occ6 = ApartmentOccupancy(apartment_id=apt6.id, household_id=households["HH_US47_DEBT"].id, start_date=date(2025, 1, 1))
+    occ7 = ApartmentOccupancy(apartment_id=apt7.id, household_id=households["HH_US47_PAID"].id, start_date=date(2025, 1, 1))
+    db_session.add_all([occ1, occ2, occ3, occ4, occ5, occ6, occ7])
     db_session.flush()
 
     # 4. Khoản thu

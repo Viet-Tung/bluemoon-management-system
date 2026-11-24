@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -314,10 +315,10 @@ class UtilityReading(Base, TimestampMixin):
         index=True,
     )
     # [SỬA] Bỏ ondelete="CASCADE" để khớp 01_schema.sql
-    billing_period_id: Mapped[int] = mapped_column(
+    billing_period_id: Mapped[Optional[int]] = mapped_column(
         BigInteger().with_variant(Integer, "sqlite"),
         ForeignKey("billing_periods.id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     previous_index: Mapped[Decimal] = mapped_column(
@@ -389,8 +390,67 @@ class UtilityReading(Base, TimestampMixin):
 
     @property
     def apartment_code(self) -> str:
-        return self.apartment.code if self.apartment else ""
+        if not self.household:
+            return ""
+        active_occ = next(
+            (occ for occ in (self.household.occupancies or []) if occ.end_date is None),
+            None,
+        )
+        return active_occ.apartment.code if (active_occ and active_occ.apartment) else ""
 
     @property
     def fee_name(self) -> str:
         return self.fee_type.name if self.fee_type else ""
+
+
+class HouseholdCreditLedger(Base):
+    """Bảng household_credit_ledger: Sổ cái theo dõi số dư có (credit) của hộ gia đình."""
+    __tablename__ = "household_credit_ledger"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    household_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("households.id"),
+        nullable=False,
+        index=True,
+    )
+    entry_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+    )  # OVERPAYMENT, APPLIED, REVERSAL, ADJUSTMENT
+    amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2),
+        nullable=False,
+    )
+    payment_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        nullable=True,
+    )
+    invoice_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("invoices.id"),
+        nullable=True,
+    )
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[Optional[int]] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "entry_type IN ('OVERPAYMENT','APPLIED','REVERSAL','ADJUSTMENT')",
+            name="chk_credit_ledger_entry_type",
+        ),
+        CheckConstraint("amount <> 0", name="chk_credit_ledger_amount_nonzero"),
+    )
