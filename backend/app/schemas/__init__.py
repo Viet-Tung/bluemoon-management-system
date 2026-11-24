@@ -93,6 +93,11 @@ from app.schemas.billing import (
     UtilityReadingPage,
     UtilityReadingUpdate,
 )
+from app.schemas.search import (
+    SearchEntityType,
+    SearchHit,
+    SearchResult,
+)
 
 __all__ = [
     "TokenPayload",
@@ -173,4 +178,7 @@ __all__ = [
     "UtilityReadingCreate",
     "UtilityReadingUpdate",
     "UtilityReadingPage",
+    "SearchEntityType",
+    "SearchHit",
+    "SearchResult",
 ]

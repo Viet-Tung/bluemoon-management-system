@@ -18,6 +18,7 @@ from app.routers import (
     import_data_router,
     residents_router,
     roles_router,
+    search_router,
     system_router,
     users_router,
     vehicles_router,
@@ -141,6 +142,8 @@ app.include_router(vehicles_router, prefix=f"{settings.API_V1_STR}/vehicles")
 app.include_router(vehicles_router, prefix="/vehicles", include_in_schema=False)
 app.include_router(billing_router, prefix=f"{settings.API_V1_STR}")
 app.include_router(billing_router, prefix="", include_in_schema=False)
+app.include_router(search_router, prefix=f"{settings.API_V1_STR}")
+app.include_router(search_router, prefix="", include_in_schema=False)
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system")
 app.include_router(system_router, prefix="/system", include_in_schema=False)
 
