@@ -1,6 +1,6 @@
 import math
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 # [SỬA] Xóa import thừa `Any`
 from typing import Dict, List, Optional
@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.database import get_db
 from app.core.rbac_middleware import AppAPIException, require_roles
@@ -54,6 +54,7 @@ def list_billing_periods(
     status_filter: Optional[BillingPeriodStatus] = Query(
         default=None, alias="status", description="Lọc theo trạng thái (DRAFT, OPEN, CLOSED)"
     ),
+    year: Optional[int] = Query(default=None, ge=2000, le=2100, description="Lọc theo năm (VD: 2026)"),
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_roles("ADMIN", "ACCOUNTANT")),
 ) -> BillingPeriodPage:
@@ -61,6 +62,11 @@ def list_billing_periods(
     stmt = select(BillingPeriod)
     if status_filter is not None:
         stmt = stmt.where(BillingPeriod.status == status_filter.value)
+
+    if year is not None:
+        start_date = date(year, 1, 1)
+        end_date = date(year, 12, 31)
+        stmt = stmt.where(BillingPeriod.period_month >= start_date, BillingPeriod.period_month <= end_date)
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
@@ -259,11 +265,14 @@ def generate_invoices(
 
     parking_fee_types: Dict[str, FeeType] = {}
     area_fee_types: List[FeeType] = []
+    household_fee_types: List[FeeType] = []
     for ft in fee_types:
         if ft.calc_method == "PER_VEHICLE" and ft.vehicle_type:
             parking_fee_types[ft.vehicle_type] = ft
         elif ft.calc_method == "PER_M2":
             area_fee_types.append(ft)
+        elif ft.calc_method == "PER_HOUSEHOLD":
+            household_fee_types.append(ft)
 
     # 7. Lấy đơn giá FeeRate có hiệu lực tại ngày period_month
     effective_rates: Dict[int, FeeRate] = {}
@@ -280,25 +289,109 @@ def generate_invoices(
         if rate:
             effective_rates[ft.id] = rate
 
-    # 8. Vòng lặp tính toán chi tiết từng hộ
+    # 8. Tối ưu hóa truy vấn: Pre-fetch dữ liệu theo batch để tránh N+1 queries (NFR-005 <= 10s cho 1.000 hộ)
+    # 8.1. Thông tin cư trú / căn hộ có hiệu lực trong kỳ
+    all_occupancies = db.execute(
+        select(ApartmentOccupancy)
+        .where(
+            or_(
+                ApartmentOccupancy.end_date.is_(None),
+                ApartmentOccupancy.end_date >= period.period_month,
+            )
+        )
+        .order_by(ApartmentOccupancy.start_date.desc(), ApartmentOccupancy.id.desc())
+        .options(joinedload(ApartmentOccupancy.apartment))
+    ).scalars().all()
+    occupancy_by_household: Dict[int, ApartmentOccupancy] = {}
+    for occ in all_occupancies:
+        if occ.household_id not in occupancy_by_household:
+            occupancy_by_household[occ.household_id] = occ
+
+    # 8.2. Danh sách phương tiện ACTIVE
+    all_vehicles = db.execute(
+        select(Vehicle).where(Vehicle.status == "ACTIVE")
+    ).scalars().all()
+    vehicles_by_household: Dict[int, Counter] = {}
+    for v in all_vehicles:
+        if v.household_id not in vehicles_by_household:
+            vehicles_by_household[v.household_id] = Counter()
+        vehicles_by_household[v.household_id][v.vehicle_type] += 1
+
+    # 8.3. Chính sách miễn giảm ACTIVE có hiệu lực trong kỳ
+    all_exemptions = db.execute(
+        select(FeeExemption).where(
+            FeeExemption.status == "ACTIVE",
+            FeeExemption.valid_from <= period.period_month,
+            or_(FeeExemption.valid_to.is_(None), FeeExemption.valid_to >= period.period_month),
+        )
+    ).scalars().all()
+    exemptions_by_household: Dict[int, Dict[int, FeeExemption]] = {}
+    for ex in all_exemptions:
+        if ex.household_id not in exemptions_by_household:
+            exemptions_by_household[ex.household_id] = {}
+        exemptions_by_household[ex.household_id][ex.fee_type_id] = ex
+
+    # 8.4. Chỉ số điện / nước đã nhập trong kỳ thu (US-38)
+    all_utility_readings = db.execute(
+        select(UtilityReading)
+        .where(UtilityReading.billing_period_id == period.id)
+        .options(joinedload(UtilityReading.fee_type))
+    ).scalars().all()
+    utility_by_household: Dict[int, List[UtilityReading]] = {}
+    for ur in all_utility_readings:
+        if ur.household_id not in utility_by_household:
+            utility_by_household[ur.household_id] = []
+        utility_by_household[ur.household_id].append(ur)
+
+    # 8.5. Tính nợ cũ lũy kế từ các kỳ trước (period_month < period.period_month)
+    prev_debt_rows = db.execute(
+        select(
+            Invoice.household_id,
+            func.coalesce(
+                func.sum(
+                    Invoice.fee_amount
+                    - Invoice.discount_amount
+                    - Invoice.credit_applied
+                    - Invoice.paid_amount
+                ),
+                0,
+            ).label("total_debt"),
+        )
+        .join(BillingPeriod, Invoice.billing_period_id == BillingPeriod.id)
+        .where(BillingPeriod.period_month < period.period_month)
+        .group_by(Invoice.household_id)
+    ).all()
+    previous_debt_by_household: Dict[int, Decimal] = {
+        row[0]: max(
+            Decimal("0"),
+            Decimal(str(row[1])).quantize(Decimal("1"), rounding=ROUND_HALF_UP),
+        )
+        for row in prev_debt_rows
+    }
+
+    # Hàm trợ giúp tính số tiền miễn giảm an toàn
+    def _calc_item_discount(gross: Decimal, exemption: Optional[FeeExemption]) -> Decimal:
+        if not exemption:
+            return Decimal("0")
+        if exemption.discount_type == "PERCENT":
+            pct = Decimal(str(exemption.discount_value))
+            discount = (gross * pct / Decimal("100")).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            )
+            return min(gross, discount)
+        elif exemption.discount_type == "AMOUNT":
+            discount = Decimal(str(exemption.discount_value)).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            )
+            return min(gross, discount)
+        return Decimal("0")
+
+    # 9. Vòng lặp tính toán chi tiết từng hộ
     created_invoices: List[Invoice] = []
     total_fee_amount = Decimal("0")
 
     for hh in households:
-        # [SỬA] Chỉ lấy căn hộ đang ở trong kỳ (end_date IS NULL hoặc end_date >= period_month),
-        # bỏ nhánh fallback lấy lại lịch sử cũ đã chuyển đi để tránh tính oan phí m²
-        occupancy = db.execute(
-            select(ApartmentOccupancy)
-            .where(
-                ApartmentOccupancy.household_id == hh.id,
-                or_(
-                    ApartmentOccupancy.end_date.is_(None),
-                    ApartmentOccupancy.end_date >= period.period_month,
-                ),
-            )
-            .order_by(ApartmentOccupancy.start_date.desc(), ApartmentOccupancy.id.desc())
-        ).scalars().first()
-
+        occupancy = occupancy_by_household.get(hh.id)
         apartment_id: Optional[int] = None
         apartment_area = Decimal("0")
         has_apartment = False
@@ -308,25 +401,10 @@ def generate_invoices(
             apartment_area = Decimal(str(occupancy.apartment.area_m2))
             has_apartment = True
 
-        # Lấy danh sách phương tiện ACTIVE của hộ gia đình (US-36, US-37)
-        vehicles = db.execute(
-            select(Vehicle).where(
-                Vehicle.household_id == hh.id,
-                Vehicle.status == "ACTIVE",
-            )
-        ).scalars().all()
-        vehicle_counts = Counter(v.vehicle_type for v in vehicles)
-
-        # Lấy chính sách miễn giảm ACTIVE của hộ có hiệu lực trong kỳ (US-15, US-16)
-        exemptions = db.execute(
-            select(FeeExemption).where(
-                FeeExemption.household_id == hh.id,
-                FeeExemption.status == "ACTIVE",
-                FeeExemption.valid_from <= period.period_month,
-                or_(FeeExemption.valid_to.is_(None), FeeExemption.valid_to >= period.period_month),
-            )
-        ).scalars().all()
-        exemptions_map = {e.fee_type_id: e for e in exemptions}
+        vehicle_counts = vehicles_by_household.get(hh.id, Counter())
+        exemptions_map = exemptions_by_household.get(hh.id, {})
+        utility_readings = utility_by_household.get(hh.id, [])
+        added_fee_types: set = set()
 
         invoice_items: List[InvoiceItem] = []
 
@@ -337,29 +415,13 @@ def generate_invoices(
             count = vehicle_counts.get(v_type, 0)
             if count > 0:
                 ft = parking_fee_types.get(v_type)
-                if ft and ft.id in effective_rates:
+                if ft and ft.id in effective_rates and ft.id not in added_fee_types:
+                    added_fee_types.add(ft.id)
                     rate = effective_rates[ft.id]
                     qty = Decimal(str(count))
                     price = Decimal(str(rate.unit_price))
                     gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-                    discount = Decimal("0")
-
-                    exemption = exemptions_map.get(ft.id)
-                    if exemption:
-                        if exemption.discount_type == "PERCENT":
-                            pct = Decimal(str(exemption.discount_value))
-                            discount = (gross * pct / Decimal("100")).quantize(
-                                Decimal("1"), rounding=ROUND_HALF_UP
-                            )
-                            discount = min(gross, discount)
-                        elif exemption.discount_type == "AMOUNT":
-                            discount = min(
-                                gross,
-                                Decimal(str(exemption.discount_value)).quantize(
-                                    Decimal("1"), rounding=ROUND_HALF_UP
-                                ),
-                            )
-
+                    discount = _calc_item_discount(gross, exemptions_map.get(ft.id))
                     net = gross - discount
                     desc = f"{count} {ft.name} × {int(price):,} đ"
 
@@ -380,35 +442,76 @@ def generate_invoices(
         # =============================================================
         if has_apartment and apartment_area > Decimal("0"):
             for area_ft in area_fee_types:
-                if area_ft.id not in effective_rates:
-                    continue
-                rate = effective_rates[area_ft.id]
-                qty = apartment_area
+                if area_ft.id in effective_rates and area_ft.id not in added_fee_types:
+                    added_fee_types.add(area_ft.id)
+                    rate = effective_rates[area_ft.id]
+                    qty = apartment_area
+                    price = Decimal(str(rate.unit_price))
+                    gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                    discount = _calc_item_discount(gross, exemptions_map.get(area_ft.id))
+                    net = gross - discount
+                    desc = f"{apartment_area:g} m² × {int(price):,} đ"
+
+                    item = InvoiceItem(
+                        fee_type_id=area_ft.id,
+                        quantity=qty,
+                        unit_price=price,
+                        gross_amount=gross,
+                        discount_amount=discount,
+                        net_amount=net,
+                        paid_amount=Decimal("0"),
+                        description=desc,
+                    )
+                    invoice_items.append(item)
+
+        # =============================================================
+        # C. TÍNH CÁC KHOẢN PHÍ CỐ ĐỊNH THEO HỘ (PER_HOUSEHOLD)
+        # =============================================================
+        for hh_ft in household_fee_types:
+            if hh_ft.id in effective_rates and hh_ft.id not in added_fee_types:
+                added_fee_types.add(hh_ft.id)
+                rate = effective_rates[hh_ft.id]
+                qty = Decimal("1")
                 price = Decimal(str(rate.unit_price))
-                gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-                discount = Decimal("0")
-
-                exemption = exemptions_map.get(area_ft.id)
-                if exemption:
-                    if exemption.discount_type == "PERCENT":
-                        pct = Decimal(str(exemption.discount_value))
-                        discount = (gross * pct / Decimal("100")).quantize(
-                            Decimal("1"), rounding=ROUND_HALF_UP
-                        )
-                        discount = min(gross, discount)
-                    elif exemption.discount_type == "AMOUNT":
-                        discount = min(
-                            gross,
-                            Decimal(str(exemption.discount_value)).quantize(
-                                Decimal("1"), rounding=ROUND_HALF_UP
-                            ),
-                        )
-
+                gross = price.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                discount = _calc_item_discount(gross, exemptions_map.get(hh_ft.id))
                 net = gross - discount
-                desc = f"{apartment_area:g} m² × {int(price):,} đ"
+                desc = f"1 {hh_ft.unit_label} × {int(price):,} đ"
 
                 item = InvoiceItem(
-                    fee_type_id=area_ft.id,
+                    fee_type_id=hh_ft.id,
+                    quantity=qty,
+                    unit_price=price,
+                    gross_amount=gross,
+                    discount_amount=discount,
+                    net_amount=net,
+                    paid_amount=Decimal("0"),
+                    description=desc,
+                )
+                invoice_items.append(item)
+
+        # =============================================================
+        # D. TÍNH CÁC KHOẢN PHÍ ĐIỆN / NƯỚC THEO CHỈ SỐ TIÊU THỤ (US-38)
+        # =============================================================
+        for reading in utility_readings:
+            ft = reading.fee_type
+            if ft and ft.id not in added_fee_types:
+                added_fee_types.add(ft.id)
+                consumption = (
+                    reading.consumption
+                    if reading.consumption is not None
+                    else (reading.current_index - reading.previous_index)
+                )
+                qty = Decimal(str(consumption))
+                price = Decimal(str(reading.unit_price))
+                gross = (qty * price).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                discount = _calc_item_discount(gross, exemptions_map.get(ft.id))
+                net = gross - discount
+                unit_label = ft.unit_label if ft.unit_label else ""
+                desc = f"{ft.name}: {reading.current_index:g} - {reading.previous_index:g} = {reading.consumption:g} {unit_label} × {int(price):,} đ"
+
+                item = InvoiceItem(
+                    fee_type_id=ft.id,
                     quantity=qty,
                     unit_price=price,
                     gross_amount=gross,
@@ -424,32 +527,7 @@ def generate_invoices(
         # =============================================================
         hh_fee_amount = sum((it.gross_amount for it in invoice_items), Decimal("0"))
         hh_discount_amount = sum((it.discount_amount for it in invoice_items), Decimal("0"))
-
-        # [SỬA] Chỉnh lại thụt lề chuẩn PEP8 cho biểu thức func.sum(...)
-        prev_debt_stmt = (
-            select(
-                func.coalesce(
-                    func.sum(
-                        Invoice.fee_amount
-                        - Invoice.discount_amount
-                        - Invoice.credit_applied
-                        - Invoice.paid_amount
-                    ),
-                    0,
-                )
-            )
-            .join(BillingPeriod, Invoice.billing_period_id == BillingPeriod.id)
-            .where(
-                Invoice.household_id == hh.id,
-                BillingPeriod.period_month < period.period_month,
-            )
-        )
-        prev_debt_val = db.execute(prev_debt_stmt).scalar() or 0
-        previous_debt = max(
-            Decimal("0"),
-            Decimal(str(prev_debt_val)).quantize(Decimal("1"), rounding=ROUND_HALF_UP),
-        )
-
+        previous_debt = previous_debt_by_household.get(hh.id, Decimal("0"))
         credit_applied = Decimal("0")
         total_due = max(
             Decimal("0"),
