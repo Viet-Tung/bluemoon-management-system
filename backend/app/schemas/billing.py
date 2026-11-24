@@ -169,6 +169,7 @@ class Invoice(BaseModel):
     household_id: int = Field(..., description="ID hộ gia đình")
     household_code: str = Field(default="", description="Mã hộ gia đình")
     apartment_id: Optional[int] = Field(default=None, description="ID căn hộ")
+    apartment_code: Optional[str] = Field(default=None, description="Mã căn hộ (nếu có)")
     apartment_area: float = Field(..., ge=0, description="Snapshot diện tích căn hộ (m2)")
     fee_amount: int = Field(..., ge=0, description="Tổng các khoản phí phát sinh kỳ này (VNĐ)")
     discount_amount: int = Field(default=0, ge=0, description="Tổng số tiền được miễn giảm (VNĐ)")

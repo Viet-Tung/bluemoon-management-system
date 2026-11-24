@@ -697,7 +697,11 @@ def list_invoices(
     total_pages = math.ceil(total / page_size) if total > 0 else 0
     offset = (page - 1) * page_size
     items = db.execute(
-        stmt.order_by(Invoice.id.desc())
+        stmt.options(
+            joinedload(Invoice.household),
+            joinedload(Invoice.apartment),
+        )
+        .order_by(Invoice.id.desc())
         .offset(offset)
         .limit(page_size)
     ).scalars().all()
@@ -728,7 +732,11 @@ def get_invoice(
     invoice = db.execute(
         select(Invoice)
         .where(Invoice.id == id)
-        .options(selectinload(Invoice.items).joinedload(InvoiceItem.fee_type))
+        .options(
+            selectinload(Invoice.items).joinedload(InvoiceItem.fee_type),
+            joinedload(Invoice.household),
+            joinedload(Invoice.apartment),
+        )
     ).scalar_one_or_none()
 
     if not invoice:

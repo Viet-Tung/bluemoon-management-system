@@ -203,6 +203,10 @@ class Invoice(Base, TimestampMixin):
     def household_code(self) -> str:
         return self.household.household_code if self.household else ""
 
+    @property
+    def apartment_code(self) -> str:
+        return self.apartment.code if self.apartment else ""
+
 
 class InvoiceItem(Base):
     """Bảng invoice_items (US-17, US-37, US-47): Chi tiết từng dòng phí trong giấy báo."""
@@ -382,6 +386,10 @@ class UtilityReading(Base, TimestampMixin):
     @property
     def household_code(self) -> str:
         return self.household.household_code if self.household else ""
+
+    @property
+    def apartment_code(self) -> str:
+        return self.apartment.code if self.apartment else ""
 
     @property
     def fee_name(self) -> str:
