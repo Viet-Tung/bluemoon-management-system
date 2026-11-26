@@ -20,7 +20,7 @@ export const SystemBackupPage: React.FC = () => {
       const data = await ApiClient.getBackupJobs({ page: 1, page_size: 50 });
       setJobs(data.items || []);
     } catch (err: any) {
-      const msg = err.message || 'Không thể tải lịch sử sao lưu từ máy chủ Backend.';
+      const msg = err.message || 'Không thể tải lịch sử sao lưu từ máy chủ.';
       setErrorMessage(msg);
       toastError(msg);
     } finally {
@@ -107,7 +107,7 @@ export const SystemBackupPage: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <div>
-              <p className="font-bold">Lỗi kết nối Backend</p>
+              <p className="font-bold">Lỗi kết nối máy chủ</p>
               <p className="text-rose-700 mt-0.5">{errorMessage}</p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export const SystemBackupPage: React.FC = () => {
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-900 flex items-start gap-3">
         <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold">Chính sách sao lưu hệ thống (US-45):</p>
+          <p className="font-bold">Chính sách sao lưu hệ thống:</p>
           <p className="mt-0.5 leading-relaxed text-blue-800">
             Hệ thống hỗ trợ kích hoạt sao lưu dữ liệu toàn vẹn bằng lệnh thủ công hoặc tự động. Các bản sao lưu được lưu trữ an toàn nhằm phục vụ quy trình khôi phục sự cố khẩn cấp.
           </p>
@@ -139,9 +139,9 @@ export const SystemBackupPage: React.FC = () => {
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="py-3 px-4">Mã Job</th>
+                <th className="py-3 px-4">Mã phiên</th>
                 <th className="py-3 px-4">Thời điểm yêu cầu</th>
-                <th className="py-3 px-4">Người yêu cầu (User ID)</th>
+                <th className="py-3 px-4">Người yêu cầu</th>
                 <th className="py-3 px-4">Thời gian hoàn tất</th>
                 <th className="py-3 px-4">Dung lượng file</th>
                 <th className="py-3 px-4 text-center">Trạng thái</th>
@@ -162,7 +162,7 @@ export const SystemBackupPage: React.FC = () => {
                       {new Date(job.requested_at).toLocaleString('vi-VN')}
                     </td>
                     <td className="py-3.5 px-4 text-slate-700">
-                      {job.requested_by ? `User #${job.requested_by}` : 'Hệ thống tự động'}
+                      {job.requested_by ? `Tài khoản #${job.requested_by}` : 'Hệ thống tự động'}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-slate-600">
                       {job.finished_at ? new Date(job.finished_at).toLocaleString('vi-VN') : '---'}

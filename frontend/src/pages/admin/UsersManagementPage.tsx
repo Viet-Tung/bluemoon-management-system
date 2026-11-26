@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   CheckCircle,
   Search,
+  Pencil,
 } from 'lucide-react';
 import { ApiClient } from '../../api';
 import { User, Role } from '../../types';
@@ -20,17 +21,23 @@ import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import { useToast } from '../../context/ToastContext';
 
+const PAGE_SIZE = 20;
+
 export const UsersManagementPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const { success, error: toastError } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Filters
+  // Server-side filters matching GET /api/v1/users
   const [searchKw, setSearchKw] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [activeFilter, setActiveFilter] = useState('ALL');
 
   // Create User Modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,7 +45,14 @@ export const UsersManagementPage: React.FC = () => {
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newRoleId, setNewRoleId] = useState<number>(2); // Default to ACCOUNTANT
+  const [newRoleId, setNewRoleId] = useState<number>(2);
+
+  // Edit User Modal (PATCH /users/{id})
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
 
   // Temp Password Modal
   const [tempPasswordResult, setTempPasswordResult] = useState<{
@@ -53,24 +67,49 @@ export const UsersManagementPage: React.FC = () => {
   const [targetUser, setTargetUser] = useState<User | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number>(1);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchKw.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKw]);
+
+  const loadRoles = useCallback(async () => {
+    try {
+      const roleList = await ApiClient.getRoles();
+      setRoles(roleList || []);
+    } catch {
+      // Handled when loading users
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const [userPage, roleList] = await Promise.all([
-        ApiClient.getUsers({ page: 1, page_size: 100 }),
-        ApiClient.getRoles(),
-      ]);
+      const userPage = await ApiClient.getUsers({
+        page,
+        page_size: PAGE_SIZE,
+        q: debouncedSearch || undefined,
+        role: roleFilter !== 'ALL' ? roleFilter : undefined,
+        is_active:
+          activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
+      });
       setUsers(userPage.items || []);
-      setRoles(roleList || []);
+      setTotal(userPage.total || 0);
     } catch (err: any) {
-      const msg = err.message || 'Không thể tải danh sách tài khoản từ máy chủ Backend.';
+      const msg = err.message || 'Không thể tải danh sách tài khoản từ máy chủ.';
       setErrorMessage(msg);
       toastError(msg);
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [page, debouncedSearch, roleFilter, activeFilter, toastError]);
+
+  useEffect(() => {
+    loadRoles();
+  }, [loadRoles]);
 
   useEffect(() => {
     loadData();
@@ -100,6 +139,24 @@ export const UsersManagementPage: React.FC = () => {
       setNewFullName('');
       setNewEmail('');
       setNewPhone('');
+      loadData();
+    } catch (err: any) {
+      toastError(err.message);
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    try {
+      await ApiClient.updateUser(editTarget.id, {
+        full_name: editFullName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+      });
+      success(`Đã cập nhật thông tin tài khoản "${editTarget.username}"!`);
+      setEditOpen(false);
+      setEditTarget(null);
       loadData();
     } catch (err: any) {
       toastError(err.message);
@@ -167,14 +224,7 @@ export const UsersManagementPage: React.FC = () => {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const matchKw =
-      u.username.toLowerCase().includes(searchKw.toLowerCase()) ||
-      u.full_name.toLowerCase().includes(searchKw.toLowerCase()) ||
-      (u.email && u.email.toLowerCase().includes(searchKw.toLowerCase()));
-    const matchRole = roleFilter === 'ALL' || u.role.code === roleFilter;
-    return matchKw && matchRole;
-  });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -211,13 +261,13 @@ export const UsersManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Backend Connection Error Banner */}
+      {/* Error Banner */}
       {errorMessage && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <div>
-              <p className="font-bold">Lỗi kết nối Backend</p>
+              <p className="font-bold">Không thể tải dữ liệu</p>
               <p className="text-rose-700 mt-0.5">{errorMessage}</p>
             </div>
           </div>
@@ -228,9 +278,9 @@ export const UsersManagementPage: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-2xl border border-slate-200">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-2xl border border-slate-200">
         <Input
-          placeholder="Tìm theo tên đăng nhập, họ tên, email..."
+          placeholder="Tìm theo tên đăng nhập, họ tên..."
           value={searchKw}
           onChange={(e) => setSearchKw(e.target.value)}
           icon={<Search className="w-4 h-4" />}
@@ -239,14 +289,32 @@ export const UsersManagementPage: React.FC = () => {
         <div>
           <select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option value="ALL">Tất cả vai trò</option>
-            <option value="ADMIN">Ban Quản Trị (ADMIN)</option>
-            <option value="ACCOUNTANT">Kế toán viên (ACCOUNTANT)</option>
-            <option value="TREASURER">Thủ quỹ (TREASURER)</option>
-            <option value="RESIDENT">Cư dân (RESIDENT)</option>
+            <option value="ADMIN">Ban Quản Trị</option>
+            <option value="ACCOUNTANT">Kế toán viên</option>
+            <option value="TREASURER">Thủ quỹ</option>
+            <option value="RESIDENT">Cư dân</option>
+          </select>
+        </div>
+
+        <div>
+          <select
+            value={activeFilter}
+            onChange={(e) => {
+              setActiveFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACTIVE">Đang hoạt động</option>
+            <option value="LOCKED">Đã khóa</option>
           </select>
         </div>
       </div>
@@ -255,7 +323,7 @@ export const UsersManagementPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Danh sách tài khoản hệ thống</h3>
-          <span className="text-xs text-slate-500">Mã hóa mật khẩu an toàn theo tiêu chuẩn hệ thống</span>
+          <span className="text-xs text-slate-500 font-mono">Tổng số: {total} tài khoản</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -265,21 +333,21 @@ export const UsersManagementPage: React.FC = () => {
                 <th className="py-3 px-4">Tên đăng nhập</th>
                 <th className="py-3 px-4">Họ và tên</th>
                 <th className="py-3 px-4">Email / SĐT</th>
-                <th className="py-3 px-4">Vai trò (Role)</th>
+                <th className="py-3 px-4">Vai trò</th>
                 <th className="py-3 px-4">Đăng nhập gần nhất</th>
                 <th className="py-3 px-4 text-center">Trạng thái</th>
                 <th className="py-3 px-4 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-400">
                     {loading ? 'Đang tải dữ liệu người dùng...' : 'Không có tài khoản nào phù hợp.'}
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                users.map((u) => {
                   const isSelf = currentUser?.id === u.id;
                   return (
                     <tr key={u.id} className="hover:bg-slate-50">
@@ -313,6 +381,20 @@ export const UsersManagementPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setEditTarget(u);
+                              setEditFullName(u.full_name);
+                              setEditEmail(u.email || '');
+                              setEditPhone(u.phone || '');
+                              setEditOpen(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition"
+                            title="Chỉnh sửa thông tin tài khoản"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
                           {u.role.code !== 'RESIDENT' && (
                             <button
                               disabled={isSelf}
@@ -376,6 +458,31 @@ export const UsersManagementPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+          <span>
+            Trang {page} / {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Trang trước
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Trang sau
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Tạo tài khoản mới */}
@@ -387,7 +494,7 @@ export const UsersManagementPage: React.FC = () => {
       >
         <form onSubmit={handleCreateUser} className="space-y-4">
           <Input
-            label="Tên đăng nhập (Username)"
+            label="Tên đăng nhập"
             placeholder="Ví dụ: ketoan_02, thuquy_02..."
             value={newUsername}
             onChange={(e) => setNewUsername(e.target.value)}
@@ -442,6 +549,48 @@ export const UsersManagementPage: React.FC = () => {
             </Button>
             <Button variant="primary" type="submit">
               Xác nhận tạo tài khoản
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Chỉnh sửa tài khoản */}
+      <Modal
+        isOpen={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={`Cập nhật thông tin tài khoản ${editTarget?.username || ''}`}
+        description="Cập nhật họ tên, email và số điện thoại liên hệ."
+      >
+        <form onSubmit={handleUpdateUser} className="space-y-4">
+          <Input
+            label="Họ và tên đầy đủ"
+            value={editFullName}
+            onChange={(e) => setEditFullName(e.target.value)}
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Email liên hệ"
+              type="email"
+              placeholder="contact@bluemoon.vn"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+            />
+            <Input
+              label="Số điện thoại"
+              placeholder="0987654321"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setEditOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" type="submit">
+              Lưu thay đổi
             </Button>
           </div>
         </form>
