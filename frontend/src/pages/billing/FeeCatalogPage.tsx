@@ -5,18 +5,25 @@ import {
   RefreshCw,
   AlertCircle,
   Search,
+  History,
+  BadgePercent,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ApiClient } from '../../api';
-import { FeeType, FeeGroup, CalcMethod, FeeCycle } from '../../types';
+import { FeeType, FeeRate, FeeGroup, CalcMethod, FeeCycle } from '../../types';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
 import { useToast } from '../../context/ToastContext';
 
+const PAGE_SIZE = 50;
+
 export const FeeCatalogPage: React.FC = () => {
   const { success, error: toastError } = useToast();
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -33,6 +40,7 @@ export const FeeCatalogPage: React.FC = () => {
   const [calcMethod, setCalcMethod] = useState<CalcMethod>('PER_M2');
   const [unitLabel, setUnitLabel] = useState('m²');
   const [vehicleType, setVehicleType] = useState<string>('MOTORBIKE');
+  const [isPassThrough, setIsPassThrough] = useState(false);
   const [cycle, setCycle] = useState<FeeCycle>('MONTHLY');
   const [dueDay, setDueDay] = useState<number>(15);
   const [description, setDescription] = useState('');
@@ -46,24 +54,36 @@ export const FeeCatalogPage: React.FC = () => {
   const [editDueDay, setEditDueDay] = useState<number>(15);
   const [editDescription, setEditDescription] = useState('');
 
+  // Fee Rates Modal (US-14)
+  const [ratesModalOpen, setRatesModalOpen] = useState(false);
+  const [ratesTargetFee, setRatesTargetFee] = useState<FeeType | null>(null);
+  const [ratesList, setRatesList] = useState<FeeRate[]>([]);
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [newUnitPrice, setNewUnitPrice] = useState('');
+  const [newEffectiveFrom, setNewEffectiveFrom] = useState(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [submittingRate, setSubmittingRate] = useState(false);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const params: any = { page: 1, page_size: 100 };
+      const params: any = { page, page_size: PAGE_SIZE };
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (groupFilter !== 'ALL') params.fee_group = groupFilter;
 
       const data = await ApiClient.getFeeTypes(params);
       setFeeTypes(data.items || []);
+      setTotal(data.total || 0);
     } catch (err: any) {
-      const msg = err.message || 'Không thể tải danh mục khoản thu từ máy chủ Backend.';
+      const msg = err.message || 'Không thể tải danh mục khoản thu từ máy chủ.';
       setErrorMessage(msg);
       toastError(msg);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, groupFilter, toastError]);
+  }, [page, statusFilter, groupFilter, toastError]);
 
   useEffect(() => {
     loadData();
@@ -78,6 +98,7 @@ export const FeeCatalogPage: React.FC = () => {
         fee_group: feeGroup,
         calc_method: calcMethod,
         unit_label: unitLabel.trim(),
+        is_pass_through: isPassThrough,
         cycle,
         due_day: Number(dueDay),
         description: description.trim() || undefined,
@@ -93,6 +114,7 @@ export const FeeCatalogPage: React.FC = () => {
       setCode('');
       setName('');
       setDescription('');
+      setIsPassThrough(false);
       loadData();
     } catch (err: any) {
       toastError(err.message);
@@ -108,7 +130,7 @@ export const FeeCatalogPage: React.FC = () => {
         unit_label: editUnitLabel.trim(),
         cycle: editCycle,
         due_day: Number(editDueDay),
-        description: editDescription.trim() || undefined,
+        description: editDescription.trim(),
       });
       success(`Đã cập nhật khoản thu "${editName.trim()}" thành công!`);
       setEditModalOpen(false);
@@ -122,17 +144,71 @@ export const FeeCatalogPage: React.FC = () => {
   const handleDeactivate = async (id: number, feeName: string) => {
     if (
       !window.confirm(
-        `Bạn có chắc muốn ngừng áp dụng khoản thu "${feeName}"? (Dữ liệu cũ vẫn được lưu trong lịch sử)`
+        `Bạn có chắc muốn ngừng áp dụng khoản thu "${feeName}"? (Dữ liệu lịch sử vẫn được giữ nguyên)`
       )
     ) {
       return;
     }
     try {
       await ApiClient.deactivateFeeType(id);
-      success(`Đã ngừng kích hoạt khoản thu "${feeName}".`);
+      success(`Đã ngừng áp dụng khoản thu "${feeName}".`);
       loadData();
     } catch (err: any) {
       toastError(err.message);
+    }
+  };
+
+  const openRatesModal = async (fee: FeeType) => {
+    setRatesTargetFee(fee);
+    setRatesList([]);
+    setNewUnitPrice(
+      fee.current_unit_price !== null && fee.current_unit_price !== undefined
+        ? String(fee.current_unit_price)
+        : ''
+    );
+    setNewEffectiveFrom(new Date().toISOString().split('T')[0]);
+    setRatesModalOpen(true);
+    setLoadingRates(true);
+    try {
+      const [freshFee, rates] = await Promise.all([
+        ApiClient.getFeeType(fee.id),
+        ApiClient.getFeeRates(fee.id),
+      ]);
+      setRatesTargetFee(freshFee);
+      setRatesList(rates || []);
+    } catch (err: any) {
+      toastError(err.message || 'Không thể tải lịch sử đơn giá.');
+    } finally {
+      setLoadingRates(false);
+    }
+  };
+
+  const handleCreateRate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ratesTargetFee) return;
+    const price = Number(newUnitPrice);
+    if (newUnitPrice.trim() === '' || isNaN(price) || !Number.isInteger(price) || price < 0) {
+      toastError('Đơn giá phải là số nguyên không âm (VNĐ).');
+      return;
+    }
+    setSubmittingRate(true);
+    try {
+      await ApiClient.createFeeRate(ratesTargetFee.id, {
+        unit_price: price,
+        effective_from: newEffectiveFrom,
+      });
+      success(`Đã thiết lập đơn giá ${formatVND(price)} từ ${newEffectiveFrom}!`);
+      const [freshFee, rates] = await Promise.all([
+        ApiClient.getFeeType(ratesTargetFee.id),
+        ApiClient.getFeeRates(ratesTargetFee.id),
+      ]);
+      setRatesTargetFee(freshFee);
+      setRatesList(rates || []);
+      loadData();
+    } catch (err: any) {
+      toastError(err.message);
+    } finally {
+      setSubmittingRate(false);
     }
   };
 
@@ -173,6 +249,19 @@ export const FeeCatalogPage: React.FC = () => {
     }
   };
 
+  const getCycleLabel = (c: FeeCycle) => {
+    switch (c) {
+      case 'MONTHLY':
+        return 'Hàng tháng';
+      case 'QUARTERLY':
+        return 'Hàng quý';
+      case 'YEARLY':
+        return 'Hàng năm';
+      default:
+        return c;
+    }
+  };
+
   const filteredFeeTypes = feeTypes.filter((f) => {
     const q = searchKw.trim().toLowerCase();
     if (!q) return true;
@@ -182,6 +271,8 @@ export const FeeCatalogPage: React.FC = () => {
       (f.description && f.description.toLowerCase().includes(q))
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -193,11 +284,11 @@ export const FeeCatalogPage: React.FC = () => {
             <span>Danh mục Khoản thu & Biểu phí</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Cấu hình các danh mục phí bắt buộc: phí quản lý theo diện tích sàn, phí giữ xe, phí dịch vụ tòa nhà.
+            Cấu hình các khoản thu bắt buộc, đơn giá theo từng thời kỳ hiệu lực và hạn nộp hàng tháng.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -207,6 +298,15 @@ export const FeeCatalogPage: React.FC = () => {
           >
             Làm mới
           </Button>
+          <Link to="/fee-exemptions">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<BadgePercent className="w-3.5 h-3.5 text-indigo-600" />}
+            >
+              Chính sách miễn giảm
+            </Button>
+          </Link>
           <Button
             variant="primary"
             size="sm"
@@ -218,13 +318,13 @@ export const FeeCatalogPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Backend Connection Error Banner */}
+      {/* Error Banner */}
       {errorMessage && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <div>
-              <p className="font-bold">Lỗi kết nối Backend</p>
+              <p className="font-bold">Không thể tải dữ liệu khoản thu</p>
               <p className="text-rose-700 mt-0.5">{errorMessage}</p>
             </div>
           </div>
@@ -250,7 +350,10 @@ export const FeeCatalogPage: React.FC = () => {
           <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nhóm khoản thu</label>
           <select
             value={groupFilter}
-            onChange={(e) => setGroupFilter(e.target.value)}
+            onChange={(e) => {
+              setGroupFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option value="ALL">Tất cả các nhóm phí</option>
@@ -265,12 +368,15 @@ export const FeeCatalogPage: React.FC = () => {
           <label className="block text-[11px] font-semibold text-slate-600 mb-1">Trạng thái áp dụng</label>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option value="ALL">Tất cả trạng thái</option>
-            <option value="ACTIVE">Đang áp dụng (ACTIVE)</option>
-            <option value="INACTIVE">Đã ngừng áp dụng (INACTIVE)</option>
+            <option value="ACTIVE">Đang áp dụng</option>
+            <option value="INACTIVE">Đã ngừng áp dụng</option>
           </select>
         </div>
       </div>
@@ -279,7 +385,7 @@ export const FeeCatalogPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Danh mục khoản thu trong hệ thống</h3>
-          <span className="text-xs text-slate-500 font-mono">Tổng số: {filteredFeeTypes.length} loại phí</span>
+          <span className="text-xs text-slate-500 font-mono">Tổng số: {total} loại phí</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -309,7 +415,14 @@ export const FeeCatalogPage: React.FC = () => {
                   <tr key={fee.id} className="hover:bg-slate-50">
                     <td className="py-3.5 px-4 font-mono font-bold text-blue-700">{fee.code}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900">
-                      <div>{fee.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{fee.name}</span>
+                        {fee.is_pass_through && (
+                          <Badge variant="warning" size="sm">
+                            Thu hộ
+                          </Badge>
+                        )}
+                      </div>
                       {fee.description && (
                         <div className="text-[11px] text-slate-400 font-normal">{fee.description}</div>
                       )}
@@ -325,12 +438,14 @@ export const FeeCatalogPage: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">{fee.unit_label}</td>
+                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">
+                      {fee.unit_label}
+                    </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
                       {formatVND(fee.current_unit_price)}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">
-                      <span>{fee.cycle === 'MONTHLY' ? 'Hàng tháng' : fee.cycle}</span>
+                      <span>{getCycleLabel(fee.cycle)}</span>
                       {fee.due_day && <span className="text-slate-400"> (Ngày {fee.due_day})</span>}
                     </td>
                     <td className="py-3.5 px-4 text-center">
@@ -339,32 +454,42 @@ export const FeeCatalogPage: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      {fee.status === 'ACTIVE' && (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => {
-                              setSelectedFee(fee);
-                              setEditName(fee.name);
-                              setEditUnitLabel(fee.unit_label);
-                              setEditCycle(fee.cycle);
-                              setEditDueDay(fee.due_day || 15);
-                              setEditDescription(fee.description || '');
-                              setEditModalOpen(true);
-                            }}
-                            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition"
-                            title="Chỉnh sửa thông tin khoản thu"
-                          >
-                            Chỉnh sửa
-                          </button>
-                          <button
-                            onClick={() => handleDeactivate(fee.id, fee.name)}
-                            className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded hover:bg-rose-50 transition"
-                            title="Ngừng áp dụng khoản thu"
-                          >
-                            Ngừng áp dụng
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openRatesModal(fee)}
+                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50 transition inline-flex items-center gap-1"
+                          title="Xem lịch sử và cập nhật đơn giá"
+                        >
+                          <History className="w-3 h-3" />
+                          <span>Đơn giá</span>
+                        </button>
+                        {fee.status === 'ACTIVE' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedFee(fee);
+                                setEditName(fee.name);
+                                setEditUnitLabel(fee.unit_label);
+                                setEditCycle(fee.cycle);
+                                setEditDueDay(fee.due_day || 15);
+                                setEditDescription(fee.description || '');
+                                setEditModalOpen(true);
+                              }}
+                              className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition"
+                              title="Chỉnh sửa thông tin khoản thu"
+                            >
+                              Chỉnh sửa
+                            </button>
+                            <button
+                              onClick={() => handleDeactivate(fee.id, fee.name)}
+                              className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded hover:bg-rose-50 transition"
+                              title="Ngừng áp dụng khoản thu"
+                            >
+                              Ngừng áp dụng
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -372,6 +497,32 @@ export const FeeCatalogPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+            <span>
+              Trang {page} / {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Trang trước
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Trang sau
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Add Fee Type */}
@@ -413,7 +564,7 @@ export const FeeCatalogPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cách tính toán</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phương pháp tính</label>
               <select
                 value={calcMethod}
                 onChange={(e) => setCalcMethod(e.target.value as any)}
@@ -443,7 +594,7 @@ export const FeeCatalogPage: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <Input
               label="Đơn vị tính"
               placeholder="m², hộ, xe, kWh..."
@@ -451,8 +602,20 @@ export const FeeCatalogPage: React.FC = () => {
               onChange={(e) => setUnitLabel(e.target.value)}
               required
             />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chu kỳ thu</label>
+              <select
+                value={cycle}
+                onChange={(e) => setCycle(e.target.value as FeeCycle)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="MONTHLY">Hàng tháng</option>
+                <option value="QUARTERLY">Hàng quý</option>
+                <option value="YEARLY">Hàng năm</option>
+              </select>
+            </div>
             <Input
-              label="Hạn nộp phí hàng tháng (1-31)"
+              label="Ngày hạn nộp (1-31)"
               type="number"
               min="1"
               max="31"
@@ -461,6 +624,16 @@ export const FeeCatalogPage: React.FC = () => {
               required
             />
           </div>
+
+          <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPassThrough}
+              onChange={(e) => setIsPassThrough(e.target.checked)}
+              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Là khoản thu hộ / dịch vụ chuyển giao cho nhà cung cấp</span>
+          </label>
 
           <Input
             label="Mô tả chi tiết khoản thu"
@@ -544,6 +717,115 @@ export const FeeCatalogPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal: Lịch sử & Cập nhật đơn giá (US-14) */}
+      <Modal
+        isOpen={ratesModalOpen}
+        onClose={() => setRatesModalOpen(false)}
+        size="lg"
+        title={`Lịch sử đơn giá — ${ratesTargetFee?.name || ''}`}
+        description={`Mã phí: ${ratesTargetFee?.code || ''} • Đơn vị tính: ${ratesTargetFee?.unit_label || ''}`}
+      >
+        <div className="space-y-5 text-xs">
+          {ratesTargetFee?.status === 'ACTIVE' && (
+            <form
+              onSubmit={handleCreateRate}
+              className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3"
+            >
+              <p className="font-bold text-slate-800">Thiết lập đơn giá mới</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label={`Đơn giá mới (VNĐ / ${ratesTargetFee.unit_label})`}
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Ví dụ: 8000"
+                  value={newUnitPrice}
+                  onChange={(e) => setNewUnitPrice(e.target.value)}
+                  required
+                />
+                <Input
+                  label="Ngày bắt đầu hiệu lực"
+                  type="date"
+                  value={newEffectiveFrom}
+                  onChange={(e) => setNewEffectiveFrom(e.target.value)}
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                * Khi lưu đơn giá mới, đơn giá đang mở hiệu lực trước đó sẽ tự động kết thúc vào ngày liền trước ngày hiệu lực mới.
+              </p>
+              <div className="flex justify-end">
+                <Button variant="primary" size="sm" type="submit" isLoading={submittingRate}>
+                  Áp dụng đơn giá mới
+                </Button>
+              </div>
+            </form>
+          )}
+
+          <div>
+            <h4 className="font-bold text-slate-800 mb-2">Lịch sử thay đổi đơn giá</h4>
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[11px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Đơn giá</th>
+                    <th className="py-2.5 px-3">Hiệu lực từ</th>
+                    <th className="py-2.5 px-3">Hiệu lực đến</th>
+                    <th className="py-2.5 px-3 text-center">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loadingRates ? (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-400">
+                        Đang tải lịch sử đơn giá...
+                      </td>
+                    </tr>
+                  ) : ratesList.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-400">
+                        Chưa có đơn giá nào được thiết lập cho khoản thu này.
+                      </td>
+                    </tr>
+                  ) : (
+                    ratesList.map((rate) => (
+                      <tr key={rate.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                          {formatVND(rate.unit_price)}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-slate-700">
+                          {rate.effective_from}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-slate-500">
+                          {rate.effective_to || 'Chưa kết thúc'}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {!rate.effective_to ? (
+                            <Badge variant="success" size="sm">
+                              Đang mở hiệu lực
+                            </Badge>
+                          ) : (
+                            <Badge variant="neutral" size="sm">
+                              Đã khép kỳ
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" size="sm" onClick={() => setRatesModalOpen(false)}>
+              Đóng
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
