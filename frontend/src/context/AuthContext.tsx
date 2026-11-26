@@ -42,7 +42,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    ApiClient.setOnUnauthorized(() => {
+      setUser(null);
+    });
     refreshUser();
+    return () => {
+      ApiClient.setOnUnauthorized(null);
+    };
   }, [refreshUser]);
 
   const login = async (username: string, password: string) => {

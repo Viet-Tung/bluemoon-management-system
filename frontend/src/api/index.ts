@@ -2,13 +2,26 @@ import {
   Apartment,
   AuditLog,
   BackupJob,
+  BillingPeriod,
+  DiscountType,
+  FeeExemption,
+  FeeRate,
   FeeType,
+  GenerateResult,
   Household,
   HouseholdCreated,
+  ImportResult,
+  Invoice,
+  InvoiceDetail,
   Page,
+  Resident,
   Role,
+  SearchResult,
   User,
   UserWithTempPassword,
+  UtilityReading,
+  Vehicle,
+  VehicleType,
 } from '../types';
 
 export class ApiError extends Error {
@@ -27,6 +40,28 @@ export class ApiError extends Error {
 
 export class ApiClient {
   private static token: string | null = localStorage.getItem('bluemoon_token');
+  private static onUnauthorized: (() => void) | null = null;
+
+  static setOnUnauthorized(cb: (() => void) | null) {
+    this.onUnauthorized = cb;
+  }
+
+  static async fetchAllPages<T>(
+    fetcher: (page: number, pageSize: number) => Promise<{ items: T[]; total: number }>,
+    pageSize: number = 100,
+    maxPages: number = 50
+  ): Promise<T[]> {
+    const first = await fetcher(1, pageSize);
+    const items = [...(first.items || [])];
+    const total = first.total ?? items.length;
+    const totalPages = Math.min(Math.ceil(total / pageSize), maxPages);
+    for (let page = 2; page <= totalPages; page++) {
+      const next = await fetcher(page, pageSize);
+      if (!next.items || next.items.length === 0) break;
+      items.push(...next.items);
+    }
+    return items;
+  }
 
   static setToken(token: string | null) {
     this.token = token;
@@ -50,10 +85,12 @@ export class ApiClient {
    */
   private static async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs: number = 8000
   ): Promise<T> {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     };
 
@@ -63,7 +100,7 @@ export class ApiClient {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(`/api/v1${endpoint}`, {
@@ -83,6 +120,11 @@ export class ApiClient {
             code: response.status === 401 ? 'UNAUTHENTICATED' : 'HTTP_ERROR',
             message: response.statusText || 'Lỗi xử lý từ máy chủ',
           };
+        }
+
+        if (response.status === 401 && !endpoint.startsWith('/auth/login')) {
+          this.setToken(null);
+          this.onUnauthorized?.();
         }
 
         throw new ApiError(
@@ -108,15 +150,15 @@ export class ApiClient {
       if (err.name === 'AbortError') {
         throw new ApiError(
           'REQUEST_TIMEOUT',
-          'Yêu cầu kết nối quá thời gian chờ (8s). Máy chủ Backend không phản hồi.',
+          'Yêu cầu kết nối quá thời gian chờ (8s). Máy chủ không phản hồi.',
           408
         );
       }
 
-      // Failed to fetch: backend service is offline
+      // Failed to fetch: API service is offline
       throw new ApiError(
         'BACKEND_OFFLINE',
-        'Không thể kết nối đến máy chủ Backend (http://localhost:8000). Vui lòng kiểm tra dịch vụ Backend.',
+        'Không thể kết nối đến máy chủ hệ thống. Vui lòng kiểm tra kết nối hoặc dịch vụ máy chủ.',
         503
       );
     }
@@ -291,13 +333,13 @@ export class ApiClient {
   static async getHouseholds(params?: {
     page?: number;
     page_size?: number;
-    apartment_id?: number;
+    q?: string;
     status?: string;
   }): Promise<Page<Household>> {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', String(params.page));
     if (params?.page_size) query.append('page_size', String(params.page_size));
-    if (params?.apartment_id) query.append('apartment_id', String(params.apartment_id));
+    if (params?.q) query.append('q', params.q);
     if (params?.status) query.append('status', params.status);
 
     const qs = query.toString() ? `?${query.toString()}` : '';
@@ -430,6 +472,351 @@ export class ApiClient {
     });
   }
 
+  static async getFeeType(id: number): Promise<FeeType> {
+    return this.request<FeeType>(`/fee-types/${id}`);
+  }
+
+  static async getFeeRates(feeTypeId: number): Promise<FeeRate[]> {
+    return this.request<FeeRate[]>(`/fee-types/${feeTypeId}/rates`);
+  }
+
+  static async createFeeRate(
+    feeTypeId: number,
+    payload: { unit_price: number; effective_from: string }
+  ): Promise<FeeRate> {
+    return this.request<FeeRate>(`/fee-types/${feeTypeId}/rates`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // ==========================================
+  // FEE EXEMPTIONS (US-15, US-16)
+  // ==========================================
+
+  static async getFeeExemptions(params?: {
+    page?: number;
+    page_size?: number;
+    household_id?: number;
+    fee_type_id?: number;
+    status?: string;
+  }): Promise<Page<FeeExemption>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.household_id) query.append('household_id', String(params.household_id));
+    if (params?.fee_type_id) query.append('fee_type_id', String(params.fee_type_id));
+    if (params?.status) query.append('status', params.status);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<FeeExemption>>(`/fee-exemptions${qs}`);
+  }
+
+  static async createFeeExemption(payload: {
+    household_id: number;
+    fee_type_id: number;
+    discount_type: DiscountType;
+    discount_value: number;
+    reason: string;
+    decision_no?: string;
+    valid_from: string;
+    valid_to?: string;
+  }): Promise<FeeExemption> {
+    return this.request<FeeExemption>('/fee-exemptions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async revokeFeeExemption(id: number): Promise<FeeExemption> {
+    return this.request<FeeExemption>(`/fee-exemptions/${id}/revoke`, {
+      method: 'POST',
+    });
+  }
+
+  // ==========================================
+  // RESIDENTS (US-05, US-06)
+  // ==========================================
+
+  static async getHouseholdResidents(
+    householdId: number,
+    params?: {
+      page?: number;
+      page_size?: number;
+      residence_status?: string;
+      include_deleted?: boolean;
+    }
+  ): Promise<Page<Resident>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.residence_status) query.append('residence_status', params.residence_status);
+    if (params?.include_deleted !== undefined) {
+      query.append('include_deleted', String(params.include_deleted));
+    }
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<Resident>>(`/households/${householdId}/residents${qs}`);
+  }
+
+  static async createResident(
+    householdId: number,
+    payload: {
+      full_name: string;
+      date_of_birth: string;
+      gender: string;
+      cccd?: string;
+      phone?: string;
+      email?: string;
+      relationship_to_head?: string;
+      is_head?: boolean;
+    }
+  ): Promise<Resident> {
+    return this.request<Resident>(`/households/${householdId}/residents`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async getResident(residentId: number): Promise<Resident> {
+    return this.request<Resident>(`/residents/${residentId}`);
+  }
+
+  static async updateResident(
+    residentId: number,
+    payload: {
+      full_name?: string;
+      date_of_birth?: string;
+      gender?: string;
+      cccd?: string;
+      phone?: string;
+      email?: string;
+      relationship_to_head?: string;
+    }
+  ): Promise<Resident> {
+    return this.request<Resident>(`/residents/${residentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async deleteResident(residentId: number, reason?: string): Promise<void> {
+    const qs = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.request<void>(`/residents/${residentId}${qs}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ==========================================
+  // IMPORT EXCEL (US-04)
+  // ==========================================
+
+  static async importExcel(file: File): Promise<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.request<ImportResult>(
+      '/import/excel',
+      {
+        method: 'POST',
+        body: formData,
+      },
+      30000
+    );
+  }
+
+  // ==========================================
+  // VEHICLES (US-36)
+  // ==========================================
+
+  static async getVehicles(params?: {
+    page?: number;
+    page_size?: number;
+    household_id?: number;
+    plate_number?: string;
+    vehicle_type?: string;
+    status?: string;
+  }): Promise<Page<Vehicle>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.household_id) query.append('household_id', String(params.household_id));
+    if (params?.plate_number) query.append('plate_number', params.plate_number);
+    if (params?.vehicle_type) query.append('vehicle_type', params.vehicle_type);
+    if (params?.status) query.append('status', params.status);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<Vehicle>>(`/vehicles${qs}`);
+  }
+
+  static async createVehicle(payload: {
+    household_id: number;
+    plate_number: string;
+    vehicle_type: VehicleType;
+    brand?: string;
+    color?: string;
+    registered_date?: string;
+  }): Promise<Vehicle> {
+    return this.request<Vehicle>('/vehicles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async updateVehicle(
+    id: number,
+    payload: {
+      plate_number?: string;
+      vehicle_type?: VehicleType;
+      brand?: string;
+      color?: string;
+    }
+  ): Promise<Vehicle> {
+    return this.request<Vehicle>(`/vehicles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async unregisterVehicle(
+    id: number,
+    payload?: { unregistered_date?: string }
+  ): Promise<Vehicle> {
+    return this.request<Vehicle>(`/vehicles/${id}/unregister`, {
+      method: 'POST',
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+  }
+
+  // ==========================================
+  // BILLING, UTILITY READINGS & INVOICES (US-17, US-37, US-38, US-47)
+  // ==========================================
+
+  static async getBillingPeriods(params?: {
+    page?: number;
+    page_size?: number;
+    status?: string;
+    year?: number;
+  }): Promise<Page<BillingPeriod>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.status) query.append('status', params.status);
+    if (params?.year) query.append('year', String(params.year));
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<BillingPeriod>>(`/billing-periods${qs}`);
+  }
+
+  static async createBillingPeriod(payload: {
+    period_month: string;
+    name: string;
+    due_date?: string;
+  }): Promise<BillingPeriod> {
+    return this.request<BillingPeriod>('/billing-periods', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async getBillingPeriod(id: number): Promise<BillingPeriod> {
+    return this.request<BillingPeriod>(`/billing-periods/${id}`);
+  }
+
+  static async generateBillingInvoices(id: number): Promise<GenerateResult> {
+    return this.request<GenerateResult>(
+      `/billing-periods/${id}/generate`,
+      {
+        method: 'POST',
+      },
+      30000
+    );
+  }
+
+  static async closeBillingPeriod(id: number): Promise<BillingPeriod> {
+    return this.request<BillingPeriod>(`/billing-periods/${id}/close`, {
+      method: 'POST',
+    });
+  }
+
+  static async getInvoices(params?: {
+    page?: number;
+    page_size?: number;
+    billing_period_id?: number;
+    household_id?: number;
+    status?: string;
+  }): Promise<Page<Invoice>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.billing_period_id) query.append('billing_period_id', String(params.billing_period_id));
+    if (params?.household_id) query.append('household_id', String(params.household_id));
+    if (params?.status) query.append('status', params.status);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<Invoice>>(`/invoices${qs}`);
+  }
+
+  static async getInvoice(id: number): Promise<InvoiceDetail> {
+    return this.request<InvoiceDetail>(`/invoices/${id}`);
+  }
+
+  static async getUtilityReadings(params?: {
+    page?: number;
+    page_size?: number;
+    billing_period_id?: number;
+    fee_type_id?: number;
+    household_id?: number;
+  }): Promise<Page<UtilityReading>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.page_size) query.append('page_size', String(params.page_size));
+    if (params?.billing_period_id) query.append('billing_period_id', String(params.billing_period_id));
+    if (params?.fee_type_id) query.append('fee_type_id', String(params.fee_type_id));
+    if (params?.household_id) query.append('household_id', String(params.household_id));
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<Page<UtilityReading>>(`/utility-readings${qs}`);
+  }
+
+  static async createUtilityReading(payload: {
+    household_id: number;
+    fee_type_id: number;
+    billing_period_id: number;
+    previous_index: number;
+    current_index: number;
+    unit_price?: number;
+  }): Promise<UtilityReading> {
+    return this.request<UtilityReading>('/utility-readings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async updateUtilityReading(
+    id: number,
+    payload: {
+      previous_index?: number;
+      current_index?: number;
+      unit_price?: number;
+    }
+  ): Promise<UtilityReading> {
+    return this.request<UtilityReading>(`/utility-readings/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // ==========================================
+  // GLOBAL SEARCH / OMNIBOX (US-23)
+  // ==========================================
+
+  static async globalSearch(q: string, limit: number = 10): Promise<SearchResult> {
+    const query = new URLSearchParams();
+    query.append('q', q);
+    query.append('limit', String(limit));
+    return this.request<SearchResult>(`/search?${query.toString()}`);
+  }
+
   // ==========================================
   // AUDIT LOGS (US-32)
   // ==========================================
@@ -439,8 +826,8 @@ export class ApiClient {
     page_size?: number;
     action?: string;
     entity_type?: string;
-    from_date?: string;
-    to_date?: string;
+    from?: string;
+    to?: string;
     user_id?: number;
   }): Promise<Page<AuditLog>> {
     const query = new URLSearchParams();
@@ -448,8 +835,8 @@ export class ApiClient {
     if (params?.page_size) query.append('page_size', String(params.page_size));
     if (params?.action) query.append('action', params.action);
     if (params?.entity_type) query.append('entity_type', params.entity_type);
-    if (params?.from_date) query.append('from_date', params.from_date);
-    if (params?.to_date) query.append('to_date', params.to_date);
+    if (params?.from) query.append('from', params.from);
+    if (params?.to) query.append('to', params.to);
     if (params?.user_id) query.append('user_id', String(params.user_id));
 
     const qs = query.toString() ? `?${query.toString()}` : '';

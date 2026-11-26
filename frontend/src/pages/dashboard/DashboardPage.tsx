@@ -10,6 +10,9 @@ import {
   AlertCircle,
   ArrowRight,
   Home,
+  Car,
+  Receipt,
+  Search,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApiClient } from '../../api';
@@ -23,6 +26,7 @@ export const DashboardPage: React.FC = () => {
 
   const isAdmin = hasRole('ADMIN');
   const canManageProperty = hasRole('ADMIN', 'ACCOUNTANT');
+  const isTreasurer = hasRole('TREASURER');
   const isResident = hasRole('RESIDENT');
 
   const [loading, setLoading] = useState(true);
@@ -32,6 +36,9 @@ export const DashboardPage: React.FC = () => {
     totalApartments: 0,
     totalHouseholds: 0,
     activeFeeTypes: 0,
+    totalVehicles: 0,
+    totalBillingPeriods: 0,
+    totalInvoices: 0,
     totalUsers: 0,
   });
 
@@ -42,57 +49,63 @@ export const DashboardPage: React.FC = () => {
     setLoading(true);
     setErrorMessage(null);
 
-    // Cư dân hoặc vai trò không có quyền quản trị không gọi API quản lý
-    if (isResident) {
+    if (isResident || isTreasurer || !canManageProperty) {
       setLoading(false);
       return;
     }
 
     try {
-      if (canManageProperty) {
-        const promises: Promise<any>[] = [
-          ApiClient.getApartments({ page: 1, page_size: 1 }),
-          ApiClient.getHouseholds({ page: 1, page_size: 1 }),
-          ApiClient.getFeeTypes({ page: 1, page_size: 1, status: 'ACTIVE' }),
-        ];
+      const promises: Promise<any>[] = [
+        ApiClient.getApartments({ page: 1, page_size: 1 }),
+        ApiClient.getHouseholds({ page: 1, page_size: 1 }),
+        ApiClient.getFeeTypes({ page: 1, page_size: 1, status: 'ACTIVE' }),
+        ApiClient.getVehicles({ page: 1, page_size: 1, status: 'ACTIVE' }),
+        ApiClient.getBillingPeriods({ page: 1, page_size: 1 }),
+        ApiClient.getInvoices({ page: 1, page_size: 1 }),
+      ];
 
-        if (isAdmin) {
-          promises.push(
-            ApiClient.getUsers({ page: 1, page_size: 1 }),
-            ApiClient.getAuditLogs({ page: 1, page_size: 5 }).catch(() => ({ items: [] })),
-            ApiClient.getBackupJobs({ page: 1, page_size: 3 }).catch(() => ({ items: [] }))
-          );
-        }
+      if (isAdmin) {
+        promises.push(
+          ApiClient.getUsers({ page: 1, page_size: 1 }),
+          ApiClient.getAuditLogs({ page: 1, page_size: 5 }).catch(() => ({ items: [] })),
+          ApiClient.getBackupJobs({ page: 1, page_size: 3 }).catch(() => ({ items: [] }))
+        );
+      }
 
-        const results = await Promise.all(promises);
-        const aptRes = results[0];
-        const hhRes = results[1];
-        const feeRes = results[2];
-        const userRes = isAdmin ? results[3] : { total: 0 };
-        const logsRes = isAdmin ? results[4] : { items: [] };
-        const backupsRes = isAdmin ? results[5] : { items: [] };
+      const results = await Promise.all(promises);
+      const aptRes = results[0];
+      const hhRes = results[1];
+      const feeRes = results[2];
+      const vehRes = results[3];
+      const periodRes = results[4];
+      const invRes = results[5];
+      const userRes = isAdmin ? results[6] : { total: 0 };
+      const logsRes = isAdmin ? results[7] : { items: [] };
+      const backupsRes = isAdmin ? results[8] : { items: [] };
 
-        setStats({
-          totalApartments: aptRes.total || 0,
-          totalHouseholds: hhRes.total || 0,
-          activeFeeTypes: feeRes.total || 0,
-          totalUsers: userRes.total || 0,
-        });
+      setStats({
+        totalApartments: aptRes.total || 0,
+        totalHouseholds: hhRes.total || 0,
+        activeFeeTypes: feeRes.total || 0,
+        totalVehicles: vehRes.total || 0,
+        totalBillingPeriods: periodRes.total || 0,
+        totalInvoices: invRes.total || 0,
+        totalUsers: userRes.total || 0,
+      });
 
-        if (isAdmin) {
-          setRecentLogs(logsRes.items || []);
-          setRecentBackups(backupsRes.items || []);
-        }
+      if (isAdmin) {
+        setRecentLogs(logsRes.items || []);
+        setRecentBackups(backupsRes.items || []);
       }
     } catch (err: any) {
       setErrorMessage(
         err.message ||
-          'Không thể kết nối đến máy chủ Backend. Vui lòng kiểm tra dịch vụ Backend.'
+          'Không thể kết nối đến máy chủ hệ thống. Vui lòng kiểm tra dịch vụ.'
       );
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, canManageProperty, isResident]);
+  }, [isAdmin, canManageProperty, isTreasurer, isResident]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -102,7 +115,7 @@ export const DashboardPage: React.FC = () => {
     <div className="space-y-6">
       {/* Welcome Hero Banner */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="relative z-10 max-w-2xl">
+        <div className="relative z-10 max-w-3xl">
           <span className="text-xs font-bold uppercase tracking-wider bg-white/10 px-3 py-1 rounded-full text-blue-200 backdrop-blur-xs">
             Hệ thống Quản lý Chung cư BlueMoon
           </span>
@@ -110,25 +123,58 @@ export const DashboardPage: React.FC = () => {
             Xin chào, {user?.full_name || user?.username}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
-            Hệ thống quản lý thông tin căn hộ, hồ sơ cư trú hộ gia đình, danh mục biểu phí và kiểm soát an toàn bảo mật.
+            Quản lý căn hộ, hồ sơ hộ gia đình & nhân khẩu, phương tiện gửi xe, danh mục biểu phí, miễn giảm và phát hành giấy báo nộp phí hàng tháng.
           </p>
 
           {canManageProperty && (
-            <div className="flex flex-wrap gap-3 mt-6">
+            <div className="flex flex-wrap gap-2.5 mt-6">
               <Link
                 to="/apartments"
                 className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-md shadow-blue-500/20"
               >
                 <Building2 className="w-4 h-4" />
-                <span>Quản lý Căn hộ & Hộ gia đình</span>
+                <span>Căn hộ & Hộ gia đình</span>
+              </Link>
+              <Link
+                to="/residents"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition backdrop-blur-xs"
+              >
+                <Users className="w-4 h-4" />
+                <span>Cư dân & Nhập Excel</span>
+              </Link>
+              <Link
+                to="/vehicles"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition backdrop-blur-xs"
+              >
+                <Car className="w-4 h-4" />
+                <span>Phương tiện</span>
               </Link>
               <Link
                 to="/fee-catalog"
                 className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition backdrop-blur-xs"
               >
                 <FileText className="w-4 h-4" />
-                <span>Danh mục biểu phí</span>
+                <span>Khoản thu & Miễn giảm</span>
               </Link>
+              <Link
+                to="/billing"
+                className="inline-flex items-center gap-2 bg-emerald-500/90 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-md shadow-emerald-500/20"
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Kỳ thu & Giấy báo phí</span>
+              </Link>
+            </div>
+          )}
+
+          {isTreasurer && (
+            <div className="mt-4 p-4 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 text-xs text-blue-100 flex items-start gap-3">
+              <Search className="w-5 h-5 text-blue-300 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-white">Không gian làm việc Thủ quỹ</p>
+                <p className="mt-0.5 text-blue-200">
+                  Bạn có thể sử dụng ô tìm kiếm nhanh trên thanh tiêu đề để tra cứu thông tin hộ gia đình, căn hộ, cư dân và biển số phương tiện.
+                </p>
+              </div>
             </div>
           )}
 
@@ -146,13 +192,13 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Backend Connection Error Banner */}
+      {/* Connection Error Banner */}
       {errorMessage && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
             <div>
-              <p className="font-bold">Lỗi kết nối Backend</p>
+              <p className="font-bold">Lỗi kết nối máy chủ</p>
               <p className="text-rose-700 mt-0.5">{errorMessage}</p>
             </div>
           </div>
@@ -170,12 +216,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* KPI Cards */}
       {canManageProperty && (
-        <div
-          className={`grid grid-cols-1 sm:grid-cols-2 ${
-            isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-          } gap-4`}
-        >
-          {/* Total Apartments */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-semibold">Tổng số Căn hộ</span>
@@ -186,15 +227,12 @@ export const DashboardPage: React.FC = () => {
             <p className="text-2xl font-bold text-slate-900 font-mono">
               {loading ? '...' : stats.totalApartments}
             </p>
-            <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-              <span>Căn hộ trong tòa nhà</span>
-            </div>
+            <div className="text-[11px] text-slate-500 mt-1">Căn hộ trong tòa nhà</div>
           </div>
 
-          {/* Total Households */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold">Hộ gia đình cư trú</span>
+              <span className="text-xs font-semibold">Hộ gia đình</span>
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Users className="w-4 h-4" />
               </div>
@@ -202,15 +240,25 @@ export const DashboardPage: React.FC = () => {
             <p className="text-2xl font-bold text-slate-900 font-mono">
               {loading ? '...' : stats.totalHouseholds}
             </p>
-            <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-              <span>Hộ gia đình đang quản lý</span>
-            </div>
+            <div className="text-[11px] text-slate-500 mt-1">Hộ gia đình đang quản lý</div>
           </div>
 
-          {/* Active Fee Types */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-semibold">Danh mục Khoản thu</span>
+              <span className="text-xs font-semibold">Phương tiện đang gửi</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Car className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 font-mono">
+              {loading ? '...' : stats.totalVehicles}
+            </p>
+            <div className="text-[11px] text-slate-500 mt-1">Xe máy, ô tô, xe đạp</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-semibold">Khoản thu đang dùng</span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <FileText className="w-4 h-4" />
               </div>
@@ -218,26 +266,36 @@ export const DashboardPage: React.FC = () => {
             <p className="text-2xl font-bold text-slate-900 font-mono">
               {loading ? '...' : stats.activeFeeTypes}
             </p>
-            <div className="text-[11px] text-emerald-600 mt-1 flex items-center gap-1">
-              <span>Khoản phí đang áp dụng</span>
+            <div className="text-[11px] text-emerald-600 mt-1">Biểu phí đang áp dụng</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-semibold">Kỳ thu phí</span>
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <Receipt className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-slate-900 font-mono">
+              {loading ? '...' : stats.totalBillingPeriods}
+            </p>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {loading ? '...' : `${stats.totalInvoices} giấy báo nộp phí`}
             </div>
           </div>
 
-          {/* Total System Users (Admin only) */}
           {isAdmin && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition">
               <div className="flex items-center justify-between text-slate-500 mb-2">
                 <span className="text-xs font-semibold">Tài khoản Hệ thống</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                   <UserCog className="w-4 h-4" />
                 </div>
               </div>
               <p className="text-2xl font-bold text-slate-900 font-mono">
                 {loading ? '...' : stats.totalUsers}
               </p>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-                <span>Tài khoản người dùng</span>
-              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Tài khoản người dùng</div>
             </div>
           )}
         </div>
@@ -276,7 +334,8 @@ export const DashboardPage: React.FC = () => {
                     <div className="min-w-0 flex-1 pr-3">
                       <p className="font-mono font-bold text-blue-700 truncate">{log.action}</p>
                       <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''} - {log.reason || 'Thao tác hệ thống'}
+                        {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''} -{' '}
+                        {log.reason || 'Thao tác hệ thống'}
                       </p>
                     </div>
                     <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">
@@ -322,7 +381,13 @@ export const DashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <Badge
-                      variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'RUNNING' ? 'info' : 'warning'}
+                      variant={
+                        job.status === 'SUCCEEDED'
+                          ? 'success'
+                          : job.status === 'RUNNING'
+                          ? 'info'
+                          : 'warning'
+                      }
                       dot
                       size="sm"
                     >

@@ -3,7 +3,11 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Building2,
+  Users,
+  Car,
   FileText,
+  BadgePercent,
+  Receipt,
   ShieldCheck,
   Database,
   UserCog,
@@ -31,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       ],
     },
     {
-      title: 'Quản lý Dữ liệu',
+      title: 'Quản lý Cư dân & Tài sản',
       items: [
         {
           name: 'Căn hộ & Hộ gia đình',
@@ -40,9 +44,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
           roles: ['ADMIN', 'ACCOUNTANT'],
         },
         {
+          name: 'Nhân khẩu & Nhập Excel',
+          path: '/residents',
+          icon: Users,
+          roles: ['ADMIN', 'ACCOUNTANT'],
+        },
+        {
+          name: 'Phương tiện gửi xe',
+          path: '/vehicles',
+          icon: Car,
+          roles: ['ADMIN', 'ACCOUNTANT'],
+        },
+      ],
+    },
+    {
+      title: 'Quản lý Khoản thu & Hóa đơn',
+      items: [
+        {
           name: 'Danh mục khoản thu',
           path: '/fee-catalog',
           icon: FileText,
+          roles: ['ADMIN', 'ACCOUNTANT'],
+        },
+        {
+          name: 'Chính sách miễn giảm',
+          path: '/fee-exemptions',
+          icon: BadgePercent,
+          roles: ['ADMIN', 'ACCOUNTANT'],
+        },
+        {
+          name: 'Kỳ thu & Giấy báo phí',
+          path: '/billing',
+          icon: Receipt,
           roles: ['ADMIN', 'ACCOUNTANT'],
         },
       ],
@@ -74,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-40 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 flex flex-col ${
+      className={`no-print fixed top-0 left-0 bottom-0 z-40 bg-slate-900 text-slate-300 border-r border-slate-800 transition-all duration-300 flex flex-col ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >

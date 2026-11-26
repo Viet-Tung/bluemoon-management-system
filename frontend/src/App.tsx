@@ -6,7 +6,11 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { ApartmentsPage } from './pages/apartments/ApartmentsPage';
+import { ResidentsPage } from './pages/residents/ResidentsPage';
+import { VehiclesPage } from './pages/vehicles/VehiclesPage';
 import { FeeCatalogPage } from './pages/billing/FeeCatalogPage';
+import { FeeExemptionsPage } from './pages/billing/FeeExemptionsPage';
+import { BillingPage } from './pages/billing/BillingPage';
 import { UsersManagementPage } from './pages/admin/UsersManagementPage';
 import { AuditLogsPage } from './pages/admin/AuditLogsPage';
 import { SystemBackupPage } from './pages/admin/SystemBackupPage';
@@ -67,10 +71,42 @@ export const AppContent: React.FC = () => {
           }
         />
         <Route
+          path="residents"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <ResidentsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="vehicles"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <VehiclesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
           path="fee-catalog"
           element={
             <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
               <FeeCatalogPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="fee-exemptions"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <FeeExemptionsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="billing"
+          element={
+            <RoleRoute roles={['ADMIN', 'ACCOUNTANT']}>
+              <BillingPage />
             </RoleRoute>
           }
         />
