@@ -46,20 +46,28 @@
 }
 
 /* Custom Utilities for Printing Receipts */
+.print-portal-root {
+  display: none;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  body > *:not(.print-portal-root) {
+    display: none !important;
+  }
+  .print-portal-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    visibility: visible !important;
+  }
+  .print-portal-root * {
+    visibility: visible !important;
   }
   .printable-area, .printable-area * {
     visibility: visible;
-  }
-  .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 16px;
   }
   .no-print {
     display: none !important;
