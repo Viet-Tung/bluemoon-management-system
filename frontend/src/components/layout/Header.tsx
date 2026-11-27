@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onChangePasswor
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Omnibox global search state (US-23: ADMIN, ACCOUNTANT, TREASURER)
-  const canSearch = hasRole('ADMIN', 'ACCOUNTANT', 'TREASURER');
+  const canSearch = !user?.must_change_password && hasRole('ADMIN', 'ACCOUNTANT', 'TREASURER');
   const canNavigateModules = hasRole('ADMIN', 'ACCOUNTANT');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
