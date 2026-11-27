@@ -133,6 +133,20 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onChangePasswor
     }
   };
 
+  const TITLE_PREFIX_BY_ENTITY: Partial<Record<SearchEntityType, string>> = {
+    APARTMENT: 'Căn hộ ',
+    HOUSEHOLD: 'Hộ ',
+    VEHICLE: 'Biển số ',
+  };
+
+  const extractSearchKeyword = (hit: SearchHit): string => {
+    const prefix = TITLE_PREFIX_BY_ENTITY[hit.entity_type];
+    if (prefix && hit.title.startsWith(prefix)) {
+      return hit.title.slice(prefix.length).trim();
+    }
+    return hit.title.trim();
+  };
+
   const handleSelectHit = (hit: SearchHit) => {
     setSearchOpen(false);
     if (!canNavigateModules) {
@@ -141,12 +155,13 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onChangePasswor
       return;
     }
 
+    const keyword = extractSearchKeyword(hit);
     switch (hit.entity_type) {
       case 'APARTMENT':
-        navigate(`/apartments?tab=apartments&q=${encodeURIComponent(hit.title)}`);
+        navigate(`/apartments?tab=apartments&q=${encodeURIComponent(keyword)}`);
         break;
       case 'HOUSEHOLD':
-        navigate(`/apartments?tab=households&q=${encodeURIComponent(hit.title)}`);
+        navigate(`/apartments?tab=households&q=${encodeURIComponent(keyword)}`);
         break;
       case 'RESIDENT':
         if (hit.household_id) {
@@ -156,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onChangePasswor
         }
         break;
       case 'VEHICLE':
-        navigate(`/vehicles?q=${encodeURIComponent(hit.title)}`);
+        navigate(`/vehicles?q=${encodeURIComponent(keyword)}`);
         break;
       default:
         setPreviewHit(hit);

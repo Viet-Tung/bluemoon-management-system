@@ -21,9 +21,17 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
+const BACKUP_BADGE_VARIANT: Record<BackupJob['status'], 'success' | 'info' | 'warning' | 'danger'> = {
+  SUCCEEDED: 'success',
+  RUNNING: 'info',
+  QUEUED: 'warning',
+  FAILED: 'danger',
+};
+
 export const DashboardPage: React.FC = () => {
   const { user, hasRole } = useAuth();
 
+  const mustChangePassword = Boolean(user?.must_change_password);
   const isAdmin = hasRole('ADMIN');
   const canManageProperty = hasRole('ADMIN', 'ACCOUNTANT');
   const isTreasurer = hasRole('TREASURER');
@@ -49,7 +57,7 @@ export const DashboardPage: React.FC = () => {
     setLoading(true);
     setErrorMessage(null);
 
-    if (isResident || isTreasurer || !canManageProperty) {
+    if (mustChangePassword || isResident || isTreasurer || !canManageProperty) {
       setLoading(false);
       return;
     }
@@ -105,7 +113,7 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, canManageProperty, isTreasurer, isResident]);
+  }, [mustChangePassword, isAdmin, canManageProperty, isTreasurer, isResident]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -381,13 +389,7 @@ export const DashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <Badge
-                      variant={
-                        job.status === 'SUCCEEDED'
-                          ? 'success'
-                          : job.status === 'RUNNING'
-                          ? 'info'
-                          : 'warning'
-                      }
+                      variant={BACKUP_BADGE_VARIANT[job.status] || 'neutral'}
                       dot
                       size="sm"
                     >

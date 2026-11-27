@@ -9,6 +9,50 @@ import { useToast } from '../../context/ToastContext';
 
 const PAGE_SIZE = 20;
 
+const AUDIT_ACTION_OPTIONS = [
+  'CHANGE_ROLE',
+  'LOCK_USER',
+  'UNLOCK_USER',
+  'RESET_PASSWORD',
+  'ACCESS_DENIED',
+  'DEACTIVATE_HOUSEHOLD',
+  'TRANSFER_APARTMENT',
+  'CHANGE_HEAD',
+  'CREATE_RESIDENT',
+  'UPDATE_RESIDENT',
+  'DELETE_RESIDENT',
+  'IMPORT_EXCEL',
+  'CREATE_VEHICLE',
+  'UPDATE_VEHICLE',
+  'UNREGISTER_VEHICLE',
+  'CREATE_FEE_TYPE',
+  'UPDATE_FEE_TYPE',
+  'DEACTIVATE_FEE',
+  'CREATE_FEE_RATE',
+  'CREATE_EXEMPTION',
+  'REVOKE_EXEMPTION',
+  'CREATE_BILLING_PERIOD',
+  'GENERATE_INVOICES',
+  'CLOSE_BILLING_PERIOD',
+  'CREATE_UTILITY_READING',
+  'UPDATE_UTILITY_READING',
+  'CREATE_BACKUP',
+];
+
+const AUDIT_ENTITY_OPTIONS = [
+  'USER',
+  'HOUSEHOLD',
+  'RESIDENT',
+  'VEHICLE',
+  'FEE_TYPE',
+  'FEE_RATE',
+  'FEE_EXEMPTION',
+  'BILLING_PERIOD',
+  'UTILITY_READING',
+  'SYSTEM',
+  'ENDPOINT',
+];
+
 export const AuditLogsPage: React.FC = () => {
   const { error: toastError } = useToast();
   const [logs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -19,6 +63,9 @@ export const AuditLogsPage: React.FC = () => {
   const [actionFilter, setActionFilter] = useState('');
   const [entityTypeFilter, setEntityTypeFilter] = useState('');
   const [userIdFilter, setUserIdFilter] = useState('');
+  const [debouncedAction, setDebouncedAction] = useState('');
+  const [debouncedEntityType, setDebouncedEntityType] = useState('');
+  const [debouncedUserId, setDebouncedUserId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [quickFilter, setQuickFilter] = useState('');
@@ -27,16 +74,45 @@ export const AuditLogsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    const nextAction = actionFilter.trim();
+    const nextEntity = entityTypeFilter.trim();
+    const nextUserId = userIdFilter.trim();
+    if (
+      debouncedAction === nextAction &&
+      debouncedEntityType === nextEntity &&
+      debouncedUserId === nextUserId
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedAction(nextAction);
+      setDebouncedEntityType(nextEntity);
+      setDebouncedUserId(nextUserId);
+      setPage(1);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    actionFilter,
+    entityTypeFilter,
+    userIdFilter,
+    debouncedAction,
+    debouncedEntityType,
+    debouncedUserId,
+  ]);
+
   const loadLogs = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const parsedUserId = userIdFilter.trim() ? Number(userIdFilter.trim()) : undefined;
+      const parsedUserId = debouncedUserId ? Number(debouncedUserId) : undefined;
       const data = await ApiClient.getAuditLogs({
         page,
         page_size: PAGE_SIZE,
-        action: actionFilter.trim() || undefined,
-        entity_type: entityTypeFilter.trim() || undefined,
+        action: debouncedAction || undefined,
+        entity_type: debouncedEntityType || undefined,
         user_id: parsedUserId && !isNaN(parsedUserId) ? parsedUserId : undefined,
         from: fromDate || undefined,
         to: toDate || undefined,
@@ -50,7 +126,7 @@ export const AuditLogsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter, entityTypeFilter, userIdFilter, fromDate, toDate, toastError]);
+  }, [page, debouncedAction, debouncedEntityType, debouncedUserId, fromDate, toDate, toastError]);
 
   useEffect(() => {
     loadLogs();
@@ -60,6 +136,9 @@ export const AuditLogsPage: React.FC = () => {
     setActionFilter('');
     setEntityTypeFilter('');
     setUserIdFilter('');
+    setDebouncedAction('');
+    setDebouncedEntityType('');
+    setDebouncedUserId('');
     setFromDate('');
     setToDate('');
     setQuickFilter('');
@@ -128,25 +207,15 @@ export const AuditLogsPage: React.FC = () => {
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mã hành động</label>
             <input
               list="audit-actions"
-              placeholder="Ví dụ: LOCK_USER, CREATE..."
+              placeholder="Ví dụ: LOCK_USER, CLOSE_BILLING_PERIOD..."
               value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setActionFilter(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
             <datalist id="audit-actions">
-              <option value="CHANGE_ROLE" />
-              <option value="LOCK_USER" />
-              <option value="UNLOCK_USER" />
-              <option value="RESET_PASSWORD" />
-              <option value="ACCESS_DENIED" />
-              <option value="CREATE_HOUSEHOLD" />
-              <option value="TRANSFER_APARTMENT" />
-              <option value="CHANGE_HEAD" />
-              <option value="GENERATE_INVOICES" />
-              <option value="CLOSE_PERIOD" />
+              {AUDIT_ACTION_OPTIONS.map((opt) => (
+                <option key={opt} value={opt} />
+              ))}
             </datalist>
           </div>
 
@@ -156,24 +225,13 @@ export const AuditLogsPage: React.FC = () => {
               list="audit-entities"
               placeholder="Ví dụ: USER, HOUSEHOLD..."
               value={entityTypeFilter}
-              onChange={(e) => {
-                setEntityTypeFilter(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setEntityTypeFilter(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
             <datalist id="audit-entities">
-              <option value="USER" />
-              <option value="APARTMENT" />
-              <option value="HOUSEHOLD" />
-              <option value="RESIDENT" />
-              <option value="VEHICLE" />
-              <option value="FEE_TYPE" />
-              <option value="FEE_RATE" />
-              <option value="FEE_EXEMPTION" />
-              <option value="BILLING_PERIOD" />
-              <option value="UTILITY_READING" />
-              <option value="ENDPOINT" />
+              {AUDIT_ENTITY_OPTIONS.map((opt) => (
+                <option key={opt} value={opt} />
+              ))}
             </datalist>
           </div>
 
@@ -184,10 +242,7 @@ export const AuditLogsPage: React.FC = () => {
               min="1"
               placeholder="ID người thao tác"
               value={userIdFilter}
-              onChange={(e) => {
-                setUserIdFilter(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setUserIdFilter(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
           </div>

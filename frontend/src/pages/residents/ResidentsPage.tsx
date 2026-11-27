@@ -353,6 +353,8 @@ export const ResidentsPage: React.FC = () => {
         return <Badge variant="tam_vang" dot size="sm">Tạm vắng</Badge>;
       case 'DA_CHUYEN_DI':
         return <Badge variant="neutral" dot size="sm">Đã chuyển đi</Badge>;
+      case 'DA_QUA_DOI':
+        return <Badge variant="neutral" dot size="sm">Đã qua đời</Badge>;
       default:
         return <Badge size="sm">{r.residence_status}</Badge>;
     }
@@ -515,6 +517,7 @@ export const ResidentsPage: React.FC = () => {
             <option value="THUONG_TRU">Thường trú</option>
             <option value="TAM_VANG">Tạm vắng</option>
             <option value="DA_CHUYEN_DI">Đã chuyển đi</option>
+            <option value="DA_QUA_DOI">Đã qua đời</option>
           </select>
 
           {isAdmin && (
