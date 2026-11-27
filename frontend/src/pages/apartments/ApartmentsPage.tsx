@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Building2,
   Plus,
@@ -39,8 +39,9 @@ export const ApartmentsPage: React.FC = () => {
   // Import Excel modal (ADMIN only)
   const [importOpen, setImportOpen] = useState(false);
 
-  // Reference options for modals (active apartments / households)
-  const [allActiveApartments, setAllActiveApartments] = useState<Apartment[]>([]);
+  // Reference options for floor filter, cross-page search, and ADMIN modals
+  const [allApartments, setAllApartments] = useState<Apartment[]>([]);
+  const [allApartmentsLoaded, setAllApartmentsLoaded] = useState(false);
   const [allActiveHouseholds, setAllActiveHouseholds] = useState<Household[]>([]);
 
   // Apartments State
@@ -142,6 +143,7 @@ export const ApartmentsPage: React.FC = () => {
       setActiveTab('apartments');
       if (qParam !== null) {
         setAptSearch(qParam);
+        setAptPage(1);
       }
     }
   }, [searchParams]);
@@ -155,17 +157,21 @@ export const ApartmentsPage: React.FC = () => {
   }, [hhSearch]);
 
   const loadReferenceOptions = useCallback(async () => {
+    try {
+      const aptItems = await ApiClient.fetchAllPages((page, pageSize) =>
+        ApiClient.getApartments({ page, page_size: pageSize })
+      );
+      setAllApartments(aptItems);
+      setAllApartmentsLoaded(true);
+    } catch {
+      // Errors surfaced by main loaders
+    }
+
     if (!isAdmin) return;
     try {
-      const [aptItems, hhItems] = await Promise.all([
-        ApiClient.fetchAllPages((page, pageSize) =>
-          ApiClient.getApartments({ page, page_size: pageSize, status: 'ACTIVE' })
-        ),
-        ApiClient.fetchAllPages((page, pageSize) =>
-          ApiClient.getHouseholds({ page, page_size: pageSize, status: 'ACTIVE' })
-        ),
-      ]);
-      setAllActiveApartments(aptItems);
+      const hhItems = await ApiClient.fetchAllPages((page, pageSize) =>
+        ApiClient.getHouseholds({ page, page_size: pageSize, status: 'ACTIVE' })
+      );
       setAllActiveHouseholds(hhItems);
     } catch {
       // Errors surfaced by main loaders
@@ -358,7 +364,9 @@ export const ApartmentsPage: React.FC = () => {
     try {
       const res = await ApiClient.getHouseholdResidents(hh.id, { page: 1, page_size: 100 });
       const activeMembers = (res.items || []).filter(
-        (r) => !r.is_deleted && r.residence_status !== 'DA_CHUYEN_DI'
+        (r) =>
+          !r.is_deleted &&
+          (r.residence_status === 'THUONG_TRU' || r.residence_status === 'TAM_VANG')
       );
       setHeadCandidates(activeMembers);
       const nonHead = activeMembers.find((r) => !r.is_head);
@@ -435,14 +443,40 @@ export const ApartmentsPage: React.FC = () => {
     }
   };
 
-  // Client filter by apartment code on current page (Backend list_apartments supports floor & status)
-  const filteredApartments = apartments.filter((apt) =>
-    apt.code.toLowerCase().includes(aptSearch.trim().toLowerCase())
+  const allActiveApartments = useMemo(
+    () => allApartments.filter((a) => a.status === 'ACTIVE'),
+    [allApartments]
   );
 
-  const availableFloors = Array.from(
-    new Set([...apartments, ...allActiveApartments].map((a) => a.floor))
-  ).sort((a, b) => a - b);
+  // Filter across all loaded apartments when searching by code (GET /apartments has no q param)
+  const aptSearchClean = aptSearch.trim().toLowerCase();
+  const matchingApartments = useMemo(() => {
+    if (!aptSearchClean) return apartments;
+    const source = allApartmentsLoaded ? allApartments : apartments;
+    return source.filter((apt) => {
+      if (!apt.code.toLowerCase().includes(aptSearchClean)) return false;
+      if (allApartmentsLoaded) {
+        if (aptFloorFilter !== 'ALL' && apt.floor !== Number(aptFloorFilter)) return false;
+        if (aptStatusFilter !== 'ALL' && apt.status !== aptStatusFilter) return false;
+      }
+      return true;
+    });
+  }, [aptSearchClean, apartments, allApartmentsLoaded, allApartments, aptFloorFilter, aptStatusFilter]);
+
+  const isClientAptSearching = Boolean(aptSearchClean && allApartmentsLoaded);
+  const displayedAptTotal = isClientAptSearching ? matchingApartments.length : aptTotal;
+  const aptTotalPages = Math.max(1, Math.ceil(displayedAptTotal / PAGE_SIZE));
+  const filteredApartments = isClientAptSearching
+    ? matchingApartments.slice((aptPage - 1) * PAGE_SIZE, aptPage * PAGE_SIZE)
+    : matchingApartments;
+
+  const availableFloors = useMemo(
+    () =>
+      Array.from(new Set([...apartments, ...allApartments].map((a) => a.floor))).sort(
+        (a, b) => a - b
+      ),
+    [apartments, allApartments]
+  );
 
   // Occupied apartment IDs from active households
   const occupiedAptIds = new Set(
@@ -458,7 +492,6 @@ export const ApartmentsPage: React.FC = () => {
       !h.apartment_id
   );
 
-  const aptTotalPages = Math.max(1, Math.ceil(aptTotal / PAGE_SIZE));
   const hhTotalPages = Math.max(1, Math.ceil(hhTotal / PAGE_SIZE));
 
   return (
@@ -574,9 +607,12 @@ export const ApartmentsPage: React.FC = () => {
           {/* Filters */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-3 rounded-2xl border border-slate-200">
             <Input
-              placeholder="Lọc mã căn hộ trên trang (VD: P.1001)..."
+              placeholder="Tìm theo mã căn hộ (VD: P.1001)..."
               value={aptSearch}
-              onChange={(e) => setAptSearch(e.target.value)}
+              onChange={(e) => {
+                setAptSearch(e.target.value);
+                setAptPage(1);
+              }}
               icon={<Search className="w-4 h-4" />}
             />
 
@@ -673,7 +709,7 @@ export const ApartmentsPage: React.FC = () => {
 
             <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
               <span>
-                Trang {aptPage} / {aptTotalPages} (Tổng {aptTotal} căn hộ)
+                Trang {aptPage} / {aptTotalPages} (Tổng {displayedAptTotal} căn hộ)
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -1079,6 +1115,14 @@ export const ApartmentsPage: React.FC = () => {
                 onChange={(e) => setHeadPhone(e.target.value)}
               />
             </div>
+
+            <Input
+              label="Email chủ hộ"
+              type="email"
+              placeholder="chuho@bluemoon.local"
+              value={headEmail}
+              onChange={(e) => setHeadEmail(e.target.value)}
+            />
           </div>
 
           <Input

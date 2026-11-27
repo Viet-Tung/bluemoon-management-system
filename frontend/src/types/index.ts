@@ -131,7 +131,7 @@ export interface ApiErrorDetail {
 // ==========================================
 
 export type Gender = 'NAM' | 'NU' | 'KHAC';
-export type ResidenceStatus = 'THUONG_TRU' | 'TAM_VANG' | 'DA_CHUYEN_DI';
+export type ResidenceStatus = 'THUONG_TRU' | 'TAM_VANG' | 'DA_CHUYEN_DI' | 'DA_QUA_DOI';
 
 export interface Resident {
   id: number;
