@@ -29,7 +29,16 @@ export const AppShell: React.FC = () => {
         />
 
         <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto animate-in fade-in duration-200">
-          <Outlet />
+          {mustChangePassword ? (
+            <div className="bg-white border border-amber-200 rounded-2xl p-6 text-xs text-slate-700 shadow-xs">
+              <p className="font-bold text-slate-900">Yêu cầu đổi mật khẩu lần đầu</p>
+              <p className="mt-1 text-slate-600">
+                Vui lòng hoàn tất đổi mật khẩu tạm thời để kích hoạt tài khoản và truy cập dữ liệu hệ thống.
+              </p>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 
