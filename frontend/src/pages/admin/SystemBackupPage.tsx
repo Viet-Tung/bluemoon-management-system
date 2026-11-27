@@ -6,9 +6,13 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { useToast } from '../../context/ToastContext';
 
+const PAGE_SIZE = 20;
+
 export const SystemBackupPage: React.FC = () => {
   const { success, error: toastError } = useToast();
   const [jobs, setJobs] = useState<BackupJob[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [backingUp, setBackingUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -17,8 +21,9 @@ export const SystemBackupPage: React.FC = () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const data = await ApiClient.getBackupJobs({ page: 1, page_size: 50 });
+      const data = await ApiClient.getBackupJobs({ page, page_size: PAGE_SIZE });
       setJobs(data.items || []);
+      setTotal(data.total || 0);
     } catch (err: any) {
       const msg = err.message || 'Không thể tải lịch sử sao lưu từ máy chủ.';
       setErrorMessage(msg);
@@ -26,7 +31,7 @@ export const SystemBackupPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [toastError]);
+  }, [page, toastError]);
 
   useEffect(() => {
     loadJobs();
@@ -37,13 +42,19 @@ export const SystemBackupPage: React.FC = () => {
     try {
       const job = await ApiClient.triggerBackup();
       success(`Đã khởi tạo tiến trình sao lưu dữ liệu (Bản ghi #${job.id}, trạng thái: ${job.status}).`);
-      loadJobs();
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        loadJobs();
+      }
     } catch (err: any) {
       toastError(err.message);
     } finally {
       setBackingUp(false);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const formatBytes = (bytes?: number | null) => {
     if (!bytes) return '---';
@@ -132,7 +143,7 @@ export const SystemBackupPage: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-800">Lịch sử các phiên sao lưu</h3>
-          <span className="text-xs text-slate-500 font-mono">Tổng số: {jobs.length} phiên</span>
+          <span className="text-xs text-slate-500 font-mono">Tổng số: {total} phiên</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -176,6 +187,31 @@ export const SystemBackupPage: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+          <span>
+            Trang {page} / {totalPages} (Tổng {total} phiên sao lưu)
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Trang trước
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Trang sau
+            </Button>
+          </div>
         </div>
       </div>
     </div>
