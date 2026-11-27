@@ -21,11 +21,11 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
-const BACKUP_BADGE_VARIANT: Record<BackupJob['status'], 'success' | 'info' | 'warning' | 'danger'> = {
-  SUCCEEDED: 'success',
-  RUNNING: 'info',
-  QUEUED: 'warning',
-  FAILED: 'danger',
+const BACKUP_STATUS_META: Record<BackupJob['status'], { variant: 'success' | 'info' | 'warning' | 'danger'; label: string } > = {
+  SUCCEEDED: { variant: 'success', label: 'Thành công' },
+  RUNNING: { variant: 'info', label: 'Đang sao lưu' },
+  QUEUED: { variant: 'warning', label: 'Chờ xử lý' },
+  FAILED: { variant: 'danger', label: 'Thất bại' },
 };
 
 export const DashboardPage: React.FC = () => {
@@ -389,11 +389,11 @@ export const DashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <Badge
-                      variant={BACKUP_BADGE_VARIANT[job.status] || 'neutral'}
+                      variant={BACKUP_STATUS_META[job.status]?.variant || 'neutral'}
                       dot
                       size="sm"
                     >
-                      {job.status}
+                      {BACKUP_STATUS_META[job.status]?.label || job.status}
                     </Badge>
                   </div>
                 ))
