@@ -328,6 +328,8 @@ export const ApartmentsPage: React.FC = () => {
       setHeadCccd('');
       setHeadPhone('');
       setHeadEmail('');
+      setHeadDob('1990-01-01');
+      setHeadGender('NAM');
     } catch (err: any) {
       toastError(err.message);
     }
