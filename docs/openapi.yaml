@@ -580,6 +580,16 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
+      - name: status
+        in: query
+        description: Lọc theo trạng thái sao lưu
+        schema:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - SUCCEEDED
+          - FAILED
       responses:
         '200':
           description: OK
@@ -1039,6 +1049,22 @@ paths:
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/Page'
       - $ref: '#/components/parameters/PageSize'
+      - name: residence_status
+        in: query
+        description: Lọc theo trạng thái cư trú
+        schema:
+          type: string
+          enum:
+          - THUONG_TRU
+          - TAM_VANG
+          - DA_CHUYEN_DI
+          - DA_QUA_DOI
+      - name: include_deleted
+        in: query
+        description: Bao gồm cả nhân khẩu đã xóa logic (chỉ ADMIN)
+        schema:
+          type: boolean
+          default: false
       responses:
         '200':
           description: OK
@@ -1180,7 +1206,7 @@ paths:
           type: string
           minLength: 1
         description: Lý do xóa (lưu vào `delete_reason`)
-        required: true
+        required: false
       responses:
         '204':
           description: Đã xóa logic
@@ -1931,6 +1957,33 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /fee-types/{id}:
+    get:
+      tags:
+      - Fee catalog
+      summary: Chi tiết khoản thu
+      operationId: getFeeType
+      x-user-stories:
+      - US-12
+      x-roles:
+      - ADMIN
+      - ACCOUNTANT
+      parameters:
+      - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       tags:
       - Fee catalog
@@ -2351,6 +2404,20 @@ paths:
         schema:
           type: integer
           format: int64
+      - name: plate_number
+        in: query
+        description: Lọc theo biển số xe
+        schema:
+          type: string
+      - name: vehicle_type
+        in: query
+        description: Lọc theo loại xe
+        schema:
+          type: string
+          enum:
+          - MOTORBIKE
+          - CAR
+          - BICYCLE
       - name: status
         in: query
         schema:
@@ -2507,6 +2574,13 @@ paths:
           - DRAFT
           - OPEN
           - CLOSED
+      - name: year
+        in: query
+        description: Lọc theo năm (VD: 2026)
+        schema:
+          type: integer
+          minimum: 2000
+          maximum: 2100
       responses:
         '200':
           description: OK
